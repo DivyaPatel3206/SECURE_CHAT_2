@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SecureChat — #{{ room_id }}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#080d14;--surface:#0d1520;--panel:#111e2e;--panel2:#152030;
+  --border:#1a2d45;--border2:#243d58;
+  --cyan:#00e5ff;--cyan2:#00b4cc;--green:#39ff85;--red:#ff3355;--amber:#ffb700;
+  --t1:#d4e8f7;--t2:#6b8fad;--t3:#2a4460;
+  --mono:'DM Mono',monospace;--sans:'Syne',sans-serif;--r:6px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--t1);font-family:var(--sans)}
+a{color:var(--cyan);text-decoration:none}
+::-webkit-scrollbar{width:3px;height:3px}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+
+/* ── LAYOUT ── */
+.layout{display:grid;grid-template-columns:200px 1fr 220px;height:100vh}
+
+/* ── SIDEBAR ── */
+.sidebar{
+  background:var(--panel);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;overflow:hidden;
+}
+.sb-top{
+  padding:.8rem 1rem;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+}
+.logo-sm{font-family:var(--sans);font-weight:800;font-size:.85rem;color:var(--t1)}
+.logo-sm em{color:var(--cyan);font-style:normal}
+.icon-btn{
+  background:none;border:none;color:var(--t2);cursor:pointer;
+  font-size:1rem;padding:.2rem;transition:color .2s;
+}
+.icon-btn:hover{color:var(--cyan)}
+
+.sb-section{padding:.9rem 1rem;border-bottom:1px solid var(--border)}
+.sb-title{
+  font-family:var(--mono);font-size:.62rem;color:var(--t2);
+  letter-spacing:.2em;margin-bottom:.7rem;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.cnt-badge{
+  background:var(--cyan);color:#000;
+  font-size:.6rem;font-weight:700;padding:1px 6px;border-radius:8px;
+}
+.room-link{
+  display:flex;align-items:center;gap:.4rem;
+  padding:.4rem .5rem;border-radius:4px;
+  font-size:.82rem;color:var(--t2);transition:all .15s;cursor:pointer;
+}
+.room-link:hover,.room-link.active{background:var(--panel2);color:var(--t1)}
+.room-link.active{border-left:2px solid var(--cyan);padding-left:.35rem}
+.room-hash{color:var(--t3)}
+
+.user-row{
+  display:flex;align-items:center;gap:.5rem;
+  padding:.3rem .2rem;font-size:.8rem;color:var(--t2);
+}
+.u-dot{width:6px;height:6px;border-radius:50%;background:var(--green);flex-shrink:0}
+
+.sb-foot{
+  padding:.8rem 1rem;border-top:1px solid var(--border);margin-top:auto;
+  display:flex;flex-direction:column;gap:.5rem;
+}
+.sess-id{font-family:var(--mono);font-size:.65rem;color:var(--cyan);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.btn-sm{
+  background:none;border:1px solid var(--border);color:var(--t2);
+  font-family:var(--mono);font-size:.65rem;padding:.3rem .6rem;
+  border-radius:4px;cursor:pointer;letter-spacing:.08em;transition:all .2s;
+}
+.btn-sm:hover{border-color:var(--red);color:var(--red)}
+
+/* ── CHAT MAIN ── */
+.chat-wrap{display:flex;flex-direction:column;overflow:hidden}
+.chat-top{
+  padding:.75rem 1.2rem;background:var(--panel);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;flex-shrink:0;
+}
+.room-name{font-family:var(--sans);font-weight:700;font-size:1rem;color:var(--t1)}
+.room-sub{font-family:var(--mono);font-size:.65rem;color:var(--t2);margin-left:.6rem}
+.conn-pill{
+  font-family:var(--mono);font-size:.68rem;letter-spacing:.1em;
+  padding:.2rem .6rem;border-radius:10px;border:1px solid;
+}
+.conn-pill.on{color:var(--green);border-color:rgba(57,255,133,.3);background:rgba(57,255,133,.06)}
+.conn-pill.off{color:var(--red);border-color:rgba(255,51,85,.3);background:rgba(255,51,85,.06)}
+.top-actions{display:flex;align-items:center;gap:.7rem}
+
+/* messages */
+.msgs{
+  flex:1;overflow-y:auto;padding:1.2rem;
+  display:flex;flex-direction:column;gap:.5rem;
+}
+.msg{
+  background:var(--panel);border:1px solid var(--border);
+  border-radius:var(--r);padding:.65rem 1rem;max-width:78%;
+  animation:msgIn .25s ease;
+}
+@keyframes msgIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.msg.me{align-self:flex-end;background:rgba(0,229,255,.07);border-color:rgba(0,229,255,.2)}
+.msg.sys{
+  align-self:center;background:none;border:none;
+  font-family:var(--mono);font-size:.7rem;color:var(--t3);padding:.15rem;
+}
+.msg-head{display:flex;justify-content:space-between;margin-bottom:.25rem;gap:1rem}
+.msg-user{font-weight:700;font-size:.8rem;color:var(--cyan)}
+.msg.me .msg-user{color:var(--green)}
+.msg-time{font-family:var(--mono);font-size:.65rem;color:var(--t3);white-space:nowrap}
+.msg-body{font-size:.9rem;line-height:1.5;color:var(--t1);word-break:break-word}
+
+/* input */
+.input-bar{
+  padding:.8rem 1rem;background:var(--panel);border-top:1px solid var(--border);
+  display:flex;gap:.6rem;flex-shrink:0;align-items:center;
+}
+.msg-input{
+  flex:1;background:var(--bg);border:1px solid var(--border);
+  color:var(--t1);padding:.65rem 1rem;border-radius:var(--r);
+  font-family:var(--sans);font-size:.9rem;outline:none;transition:border-color .2s;
+}
+.msg-input:focus{border-color:var(--cyan)}
+.msg-input::placeholder{color:var(--t3)}
+.send-btn{
+  background:var(--cyan);color:#000;border:none;
+  padding:.65rem 1.4rem;border-radius:var(--r);
+  font-family:var(--sans);font-weight:700;font-size:.82rem;letter-spacing:.1em;
+  cursor:pointer;transition:background .2s;flex-shrink:0;
+}
+.send-btn:hover{background:#33ecff}
+
+/* ── ALERT PANEL ── */
+.alert-panel{
+  background:var(--panel);border-left:1px solid var(--border);
+  display:flex;flex-direction:column;overflow:hidden;
+}
+.ap-section{padding:.9rem 1rem;border-bottom:1px solid var(--border);overflow-y:auto}
+.ap-section.grow{flex:1;overflow-y:auto}
+.ap-title{font-family:var(--mono);font-size:.62rem;color:var(--t2);letter-spacing:.2em;margin-bottom:.7rem}
+.alert-item{
+  font-family:var(--mono);font-size:.68rem;padding:.45rem .6rem;
+  border-left:2px solid;border-radius:0 4px 4px 0;margin-bottom:.4rem;
+  line-height:1.5;
+}
+.alert-item.critical,.alert-item.high{border-color:var(--red);background:rgba(255,51,85,.07)}
+.alert-item.medium{border-color:var(--amber);background:rgba(255,183,0,.07)}
+.alert-item.low{border-color:var(--cyan2);background:rgba(0,229,255,.06)}
+.at{color:var(--t2);font-size:.63rem}
+.ap-empty{font-family:var(--mono);font-size:.7rem;color:var(--t3);padding:.3rem 0}
+
+.sess-stat{display:flex;justify-content:space-between;font-family:var(--mono);font-size:.72rem;padding:.35rem 0;border-bottom:1px solid var(--border)}
+.sess-stat span:first-child{color:var(--t2)}
+.sess-stat span:last-child{color:var(--t1)}
+
+/* ── QR MODAL ── */
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:500;display:flex;align-items:center;justify-content:center}
+.modal.hide{display:none}
+.modal-box{
+  background:var(--panel);border:1px solid var(--border2);
+  border-radius:var(--r);width:340px;overflow:hidden;
+}
+.modal-hd{
+  padding:.9rem 1.1rem;border-bottom:1px solid var(--border);
+  display:flex;justify-content:space-between;align-items:center;
+}
+.modal-hd h3{font-family:var(--mono);font-size:.78rem;color:var(--cyan);letter-spacing:.12em}
+.modal-close{background:none;border:none;color:var(--t2);cursor:pointer;font-size:1rem}
+.modal-body{padding:1.2rem;text-align:center}
+.modal-body p{font-size:.82rem;color:var(--t2);margin-bottom:1rem}
+.btn-primary{
+  width:100%;padding:.7rem;background:var(--cyan);color:#000;border:none;
+  font-family:var(--sans);font-weight:700;font-size:.82rem;letter-spacing:.1em;
+  border-radius:var(--r);cursor:pointer;transition:background .2s;
+}
+.btn-primary:hover{background:#33ecff}
+.qr-info{font-family:var(--mono);font-size:.65rem;color:var(--t2);margin-top:.6rem}
+</style>
+</head>
+<body>
+
+<div class="layout">
+
+  <!-- ── SIDEBAR ── -->
+  <aside class="sidebar">
+    <div class="sb-top">
+      <a href="/" class="logo-sm">Secure<em>Chat</em></a>
+      <button class="icon-btn" onclick="location.href='/dashboard'" title="Dashboard">⊞</button>
+    </div>
+
+    <div class="sb-section">
+      <div class="sb-title">ROOMS</div>
+      <div id="room-list">
+        <a href="/chat/general" class="room-link {% if room_id=='general' %}active{% endif %}">
+          <span class="room-hash">#</span>general
+        </a>
+        <a href="/chat/dev" class="room-link {% if room_id=='dev' %}active{% endif %}">
+          <span class="room-hash">#</span>dev
+        </a>
+        <a href="/chat/security" class="room-link {% if room_id=='security' %}active{% endif %}">
+          <span class="room-hash">#</span>security
+        </a>
+      </div>
+    </div>
+
+    <div class="sb-section" style="flex:1;overflow-y:auto">
+      <div class="sb-title">
+        ONLINE <span class="cnt-badge" id="u-cnt">0</span>
+      </div>
+      <div id="u-list"></div>
+    </div>
+
+    <div class="sb-foot">
+      <span class="sess-id" id="sess-label">—</span>
+      <button class="btn-sm" onclick="logout()">LOGOUT</button>
+    </div>
+  </aside>
+
+  <!-- ── MAIN ── -->
+  <section class="chat-wrap">
+    <div class="chat-top">
+      <div>
+        <span class="room-name"># {{ room_id }}</span>
+        <span class="room-sub">IDS Protected · Encrypted</span>
+      </div>
+      <div class="top-actions">
+        <button class="btn-sm" onclick="openQR()">📱 QR Code</button>
+        <span class="conn-pill off" id="conn-pill">● CONNECTING</span>
+      </div>
+    </div>
+
+    <div class="msgs" id="msgs"></div>
+
+    <div class="input-bar">
+      <input class="msg-input" id="mi" placeholder="Type message — Enter to send…" maxlength="1000"
+             autocomplete="off" onkeydown="if(event.key==='Enter')send()">
+      <button class="send-btn" onclick="send()">SEND</button>
+    </div>
+  </section>
+
+  <!-- ── ALERT PANEL ── -->
+  <aside class="alert-panel">
+    <div class="ap-section">
+      <div class="ap-title">SESSION INFO</div>
+      <div class="sess-stat"><span>Room</span><span id="s-room">—</span></div>
+      <div class="sess-stat"><span>Messages</span><span id="s-msgs">0</span></div>
+      <div class="sess-stat"><span>Score</span><span id="s-score">0</span></div>
+      <div class="sess-stat"><span>Level</span><span id="s-level" style="color:var(--green)">Normal</span></div>
+    </div>
+    <div class="ap-section grow">
+      <div class="ap-title">LOCAL ALERTS</div>
+      <div id="ap-alerts"><div class="ap-empty">No alerts yet</div></div>
+    </div>
+  </aside>
+</div>
+
+<!-- QR Modal -->
+<div class="modal hide" id="qr-modal">
+  <div class="modal-box">
+    <div class="modal-hd">
+      <h3>// QR ROOM JOIN</h3>
+      <button class="modal-close" onclick="closeQR()">✕</button>
+    </div>
+    <div class="modal-body">
+      <p>Single-use · 5-min expiry · Device-bound token for <strong>#{{ room_id }}</strong></p>
+      <button class="btn-primary" onclick="genQR()">Generate QR Code</button>
+      <div id="qr-img" style="margin-top:1rem"></div>
+      <p class="qr-info" id="qr-info"></p>
+    </div>
+  </div>
+</div>
+
+<script>
+const ROOM="{{ room_id }}";
+const ST=sessionStorage.getItem("st");
+const UN=sessionStorage.getItem("un")||"anon";
+const PT=sessionStorage.getItem("pt")||"";
+const FP={ua:navigator.userAgent,sc:`${screen.width}x${screen.height}`,tz:Intl.DateTimeFormat().resolvedOptions().timeZone};
+
+if(!ST){location.href="/";throw 0;}
+
+document.getElementById("sess-label").textContent=UN;
+document.getElementById("s-room").textContent="#"+ROOM;
+
+let ws,msgCount=0,reconnDelay=1000;
+
+function connect(){
+  // Determine WS protocol based on page protocol
+  const proto=location.protocol==="https:"?"wss":"ws";
+  const host=location.host;
+  ws=new WebSocket(`${proto}://${host}/ws/chat/${ROOM}`);
+
+  ws.onopen=()=>{
+    setPill(true);reconnDelay=1000;
+    ws.send(JSON.stringify({type:"auth",session_token:ST,fingerprint:btoa(JSON.stringify(FP))}));
+    if(PT)ws.send(JSON.stringify({type:"probe_echo",probe_token:PT}));
+  };
+  ws.onmessage=e=>handle(JSON.parse(e.data));
+  ws.onclose=()=>{setPill(false);setTimeout(connect,reconnDelay);reconnDelay=Math.min(reconnDelay*2,12000)};
+  ws.onerror=()=>setPill(false);
+}
+
+function setPill(on){
+  const p=document.getElementById("conn-pill");
+  p.textContent=on?"● SECURE":"● OFFLINE";
+  p.className="conn-pill "+(on?"on":"off");
+}
+
+function handle(m){
+  if(m.type==="chat"){
+    addMsg(m.username,m.content,m.ts,m.username===UN);
+    msgCount++;document.getElementById("s-msgs").textContent=msgCount;
+  }
+  else if(m.type==="system"){
+    addSys(m.msg);updateUsers(m.users||[]);
+  }
+  else if(m.type==="error"){pushAlert(m.msg,"high")}
+  else if(m.type==="kicked"){
+    pushAlert("Kicked: "+m.reason,"critical");
+    ws.close();setTimeout(()=>location.href="/",2000);
+  }
+}
+
+function addMsg(user,content,ts,me){
+  const a=document.getElementById("msgs");
+  const d=document.createElement("div");
+  d.className="msg"+(me?" me":"");
+  const t=ts?new Date(ts*1000).toLocaleTimeString():"";
+  d.innerHTML=`<div class="msg-head"><span class="msg-user">${esc(user)}</span><span class="msg-time">${t}</span></div><div class="msg-body">${esc(content)}</div>`;
+  a.appendChild(d);a.scrollTop=a.scrollHeight;
+}
+function addSys(txt){
+  const a=document.getElementById("msgs");
+  const d=document.createElement("div");d.className="msg sys";d.textContent=txt;
+  a.appendChild(d);a.scrollTop=a.scrollHeight;
+}
+function updateUsers(users){
+  document.getElementById("u-cnt").textContent=users.length;
+  document.getElementById("u-list").innerHTML=
+    users.map(u=>`<div class="user-row"><span class="u-dot"></span>${esc(u)}</div>`).join("");
+}
+function pushAlert(text,sev){
+  const c=document.getElementById("ap-alerts");
+  const old=c.querySelector(".ap-empty");if(old)old.remove();
+  const d=document.createElement("div");
+  d.className=`alert-item ${sev}`;
+  d.innerHTML=`<span class="at">${new Date().toLocaleTimeString()}</span> ${esc(text)}`;
+  c.insertBefore(d,c.firstChild);
+  if(c.children.length>10)c.removeChild(c.lastChild);
+}
+
+function send(){
+  const inp=document.getElementById("mi");
+  const v=inp.value.trim();
+  if(!v||!ws||ws.readyState!==1)return;
+  ws.send(JSON.stringify({type:"chat",content:v}));inp.value="";
+}
+
+async function logout(){
+  await fetch("/auth/logout",{method:"POST",headers:{"x-session-token":ST}});
+  sessionStorage.clear();location.href="/";
+}
+
+/* QR */
+function openQR(){document.getElementById("qr-modal").classList.remove("hide")}
+function closeQR(){document.getElementById("qr-modal").classList.add("hide")}
+async function genQR(){
+  const out=document.getElementById("qr-img");
+  out.textContent="Generating…";
+  const r=await fetch(`/chat/qr/${ROOM}`);const d=await r.json();
+  out.innerHTML=`<img src="${d.qr_image}" style="max-width:180px;border:2px solid var(--cyan);border-radius:6px">`;
+  document.getElementById("qr-info").textContent=`Expires in ${d.expires_in}s · single-use · device-bound`;
+}
+
+function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}
+
+/* ping keepalive */
+setInterval(()=>{if(ws&&ws.readyState===1)ws.send(JSON.stringify({type:"ping"}))},20000);
+
+connect();
+</script>
+</body>
+</html>
