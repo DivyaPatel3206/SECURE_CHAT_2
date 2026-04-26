@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SecureChat — Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#080d14;--surface:#0d1520;--panel:#111e2e;--panel2:#152030;
+  --border:#1a2d45;--border2:#243d58;
+  --cyan:#00e5ff;--cyan2:#00b4cc;--green:#39ff85;--red:#ff3355;--amber:#ffb700;
+  --t1:#d4e8f7;--t2:#6b8fad;--t3:#2a4460;
+  --mono:'DM Mono',monospace;--sans:'Syne',sans-serif;--r:6px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--t1);font-family:var(--sans)}
+a{color:var(--cyan);text-decoration:none}
+::-webkit-scrollbar{width:3px;height:3px}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+
+.layout{display:grid;grid-template-columns:196px 1fr;height:100vh}
+
+/* ── SIDEBAR ── */
+.sidebar{
+  background:var(--panel);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;
+}
+.sb-top{padding:.9rem 1rem;border-bottom:1px solid var(--border)}
+.brand{font-family:var(--sans);font-weight:800;font-size:.9rem;color:var(--t1);display:block}
+.brand em{color:var(--cyan);font-style:normal}
+.sub-label{font-family:var(--mono);font-size:.6rem;color:var(--t2);letter-spacing:.15em;margin-top:.2rem}
+.nav{padding:.6rem 0;flex:1}
+.nav-item{
+  display:block;padding:.6rem 1.1rem;
+  font-family:var(--mono);font-size:.72rem;letter-spacing:.08em;
+  color:var(--t2);cursor:pointer;transition:all .15s;border-left:2px solid transparent;
+}
+.nav-item:hover,.nav-item.active{color:var(--cyan);background:rgba(0,229,255,.05);border-left-color:var(--cyan)}
+.sb-bot{
+  padding:.8rem 1rem;border-top:1px solid var(--border);
+  display:flex;align-items:center;gap:.5rem;
+}
+.status-dot{width:7px;height:7px;border-radius:50%;background:var(--t3)}
+.status-dot.live{background:var(--green);box-shadow:0 0 6px var(--green);animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.status-txt{font-family:var(--mono);font-size:.68rem;color:var(--t2)}
+
+/* ── MAIN ── */
+.main{display:flex;flex-direction:column;overflow:hidden}
+.topbar{
+  padding:.7rem 1.5rem;background:var(--panel);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;flex-shrink:0;
+}
+.page-title{font-family:var(--mono);font-size:.85rem;letter-spacing:.2em;color:var(--t1)}
+.topbar-actions{display:flex;gap:.6rem}
+.btn-sm{
+  background:none;border:1px solid var(--border);color:var(--t2);
+  font-family:var(--mono);font-size:.68rem;padding:.3rem .7rem;
+  border-radius:4px;cursor:pointer;letter-spacing:.08em;transition:all .2s;
+}
+.btn-sm:hover{border-color:var(--cyan);color:var(--cyan)}
+
+.panels{flex:1;overflow-y:auto;padding:1.4rem}
+.panel{display:none}.panel.active{display:block}
+
+/* stat cards */
+.stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.9rem;margin-bottom:1.4rem}
+.stat-card{
+  background:var(--panel);border:1px solid var(--border);
+  border-radius:var(--r);padding:1.1rem 1.2rem;
+  transition:border-color .2s;position:relative;overflow:hidden;
+}
+.stat-card::after{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:var(--card-color,var(--cyan));opacity:.4;
+}
+.stat-card:hover{border-color:var(--border2)}
+.stat-val{font-family:var(--mono);font-size:2rem;font-weight:500;margin-bottom:.25rem}
+.stat-lbl{font-family:var(--mono);font-size:.65rem;color:var(--t2);letter-spacing:.15em}
+
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:.9rem}
+.box{background:var(--panel);border:1px solid var(--border);border-radius:var(--r);padding:1.1rem;overflow:hidden}
+.box h4{font-family:var(--mono);font-size:.65rem;color:var(--t2);letter-spacing:.18em;margin-bottom:.9rem}
+
+/* threat bars */
+.tbar-row{display:flex;align-items:center;gap:.7rem;margin-bottom:.6rem;font-size:.8rem}
+.tbar-row>span:first-child{width:85px;color:var(--t2);font-family:var(--mono);font-size:.72rem}
+.tbar-row>span:last-child{width:28px;text-align:right;font-family:var(--mono);font-size:.72rem}
+.tbar{flex:1;background:var(--bg);height:6px;border-radius:2px;overflow:hidden}
+.tbar-fill{height:100%;border-radius:2px;transition:width .7s ease}
+.tbar-fill.n{background:var(--green)}.tbar-fill.s{background:var(--amber)}.tbar-fill.a{background:var(--red)}
+
+/* live stream */
+.live-stream{display:flex;flex-direction:column;gap:.35rem;max-height:220px;overflow-y:auto}
+.ls-item{
+  font-family:var(--mono);font-size:.68rem;padding:.4rem .6rem;
+  border-left:2px solid;border-radius:0 4px 4px 0;line-height:1.5;
+}
+.ls-item.critical,.ls-item.high{border-color:var(--red);background:rgba(255,51,85,.07)}
+.ls-item.medium{border-color:var(--amber);background:rgba(255,183,0,.07)}
+.ls-item.low,.ls-item.info{border-color:var(--cyan2);background:rgba(0,229,255,.06)}
+.ls-ts{color:var(--t2);font-size:.63rem;margin-right:.4rem}
+
+/* tables */
+.tbl{width:100%;border-collapse:collapse;font-size:.78rem}
+.tbl th{
+  font-family:var(--mono);font-size:.63rem;letter-spacing:.15em;
+  color:var(--t2);padding:.55rem .7rem;text-align:left;
+  border-bottom:1px solid var(--border);white-space:nowrap;
+}
+.tbl td{padding:.5rem .7rem;border-bottom:1px solid var(--border);color:var(--t1)}
+.tbl tr:hover td{background:rgba(0,229,255,.03)}
+.badge-n{color:var(--green);font-family:var(--mono);font-size:.68rem}
+.badge-s{color:var(--amber);font-family:var(--mono);font-size:.68rem}
+.badge-a{color:var(--red);font-family:var(--mono);font-size:.68rem}
+.sev-c,.sev-critical{color:#ff0033;font-family:var(--mono);font-size:.68rem}
+.sev-high{color:var(--red);font-family:var(--mono);font-size:.68rem}
+.sev-medium{color:var(--amber);font-family:var(--mono);font-size:.68rem}
+.sev-low{color:var(--cyan2);font-family:var(--mono);font-size:.68rem}
+.m-get{color:var(--green);font-family:var(--mono);font-size:.7rem}
+.m-post{color:var(--cyan);font-family:var(--mono);font-size:.7rem}
+.m-delete{color:var(--red);font-family:var(--mono);font-size:.7rem}
+
+/* kick btn */
+.btn-kick{
+  background:rgba(255,51,85,.12);color:var(--red);
+  border:1px solid rgba(255,51,85,.25);
+  font-family:var(--mono);font-size:.65rem;padding:.2rem .5rem;
+  border-radius:4px;cursor:pointer;transition:all .2s;
+}
+.btn-kick:hover{background:rgba(255,51,85,.25)}
+
+/* simulation */
+.sim-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.9rem;margin-bottom:1.2rem}
+.sim-card{
+  background:var(--panel);border:1px solid var(--border);
+  border-radius:var(--r);padding:1.1rem;
+}
+.sim-card h5{color:var(--t1);margin-bottom:.5rem;font-size:.88rem}
+.sim-card p{color:var(--t2);font-family:var(--mono);font-size:.7rem;line-height:1.6;margin-bottom:1rem}
+.btn-sim{
+  width:100%;padding:.55rem;
+  background:rgba(255,51,85,.1);color:var(--red);
+  border:1px solid rgba(255,51,85,.25);border-radius:4px;
+  font-family:var(--mono);font-size:.72rem;cursor:pointer;letter-spacing:.1em;transition:all .2s;
+}
+.btn-sim:hover{background:rgba(255,51,85,.22);border-color:var(--red)}
+.sim-out{
+  background:var(--bg);border:1px solid var(--border2);
+  border-radius:var(--r);padding:1rem;font-family:var(--mono);
+  font-size:.75rem;min-height:56px;color:var(--t2);line-height:1.8;
+}
+.sim-out strong{color:var(--t1)}
+.sim-out .ok{color:var(--green)}
+</style>
+</head>
+<body>
+<div class="layout">
+
+  <aside class="sidebar">
+    <div class="sb-top">
+      <a href="/" class="brand">Secure<em>Chat</em></a>
+      <div class="sub-label">ADMIN DASHBOARD</div>
+    </div>
+    <nav class="nav">
+      <a class="nav-item active" onclick="show('overview',this)">⊞ Overview</a>
+      <a class="nav-item" onclick="show('sessions',this)">⧉ Sessions</a>
+      <a class="nav-item" onclick="show('alerts',this)">⚠ Alerts</a>
+      <a class="nav-item" onclick="show('logs',this)">≡ Request Logs</a>
+      <a class="nav-item" onclick="show('simulate',this)">⚡ Simulation</a>
+    </nav>
+    <div class="sb-bot">
+      <span class="status-dot" id="ws-dot"></span>
+      <span class="status-txt" id="ws-lbl">Connecting…</span>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <span class="page-title" id="pg-title">OVERVIEW</span>
+      <div class="topbar-actions">
+        <button class="btn-sm" onclick="refresh()">↺ Refresh</button>
+        <a href="/chat/general" class="btn-sm">→ Chat</a>
+      </div>
+    </div>
+
+    <div class="panels">
+
+      <!-- OVERVIEW -->
+      <div class="panel active" id="panel-overview">
+        <div class="stat-grid">
+          <div class="stat-card" style="--card-color:var(--cyan)">
+            <div class="stat-val" id="s-online" style="color:var(--cyan)">0</div>
+            <div class="stat-lbl">ONLINE USERS</div>
+          </div>
+          <div class="stat-card" style="--card-color:var(--green)">
+            <div class="stat-val" id="s-sess" style="color:var(--green)">0</div>
+            <div class="stat-lbl">ACTIVE SESSIONS</div>
+          </div>
+          <div class="stat-card" style="--card-color:var(--amber)">
+            <div class="stat-val" id="s-alerts" style="color:var(--amber)">0</div>
+            <div class="stat-lbl">TOTAL ALERTS</div>
+          </div>
+          <div class="stat-card" style="--card-color:var(--red)">
+            <div class="stat-val" id="s-crit" style="color:var(--red)">0</div>
+            <div class="stat-lbl">CRITICAL ALERTS</div>
+          </div>
+          <div class="stat-card" style="--card-color:var(--red)">
+            <div class="stat-val" id="s-blocked" style="color:var(--red)">0</div>
+            <div class="stat-lbl">BLOCKED IPs</div>
+          </div>
+          <div class="stat-card" style="--card-color:var(--amber)">
+            <div class="stat-val" id="s-probes" style="color:var(--amber)">0</div>
+            <div class="stat-lbl">SUSPICIOUS PROBES</div>
+          </div>
+        </div>
+        <div class="row2">
+          <div class="box">
+            <h4>THREAT BREAKDOWN</h4>
+            <div id="threat-bars"></div>
+          </div>
+          <div class="box">
+            <h4>LIVE ALERT STREAM</h4>
+            <div class="live-stream" id="live-stream">
+              <span style="font-family:var(--mono);font-size:.7rem;color:var(--t3)">Waiting for alerts…</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SESSIONS -->
+      <div class="panel" id="panel-sessions">
+        <div class="box" style="overflow-x:auto">
+          <h4>ACTIVE SESSIONS</h4>
+          <table class="tbl">
+            <thead><tr>
+              <th>USERNAME</th><th>IP</th><th>THREAT SCORE</th>
+              <th>LEVEL</th><th>LAST SEEN</th><th>ACTION</th>
+            </tr></thead>
+            <tbody id="sess-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ALERTS -->
+      <div class="panel" id="panel-alerts">
+        <div class="box" style="overflow-x:auto">
+          <h4>IDS ALERT LOG</h4>
+          <table class="tbl">
+            <thead><tr>
+              <th>TIME</th><th>TYPE</th><th>SEVERITY</th>
+              <th>DESCRIPTION</th><th>IP</th>
+            </tr></thead>
+            <tbody id="alerts-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- LOGS -->
+      <div class="panel" id="panel-logs">
+        <div class="box" style="overflow-x:auto">
+          <h4>HTTP REQUEST LOG</h4>
+          <table class="tbl">
+            <thead><tr>
+              <th>TIME</th><th>IP</th><th>METHOD</th>
+              <th>PATH</th><th>SIZE</th><th>USER-AGENT</th>
+            </tr></thead>
+            <tbody id="logs-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- SIMULATION -->
+      <div class="panel" id="panel-simulate">
+        <div class="box">
+          <h4>ATTACK SIMULATION CONSOLE</h4>
+          <p style="color:var(--t2);font-family:var(--mono);font-size:.72rem;margin-bottom:1.2rem;line-height:1.7">
+            Trigger IDS detection scenarios to demonstrate protection mechanisms.
+            All simulations generate real alerts visible in the live stream.
+          </p>
+          <div class="sim-grid">
+            <div class="sim-card">
+              <h5>DDoS Flood</h5>
+              <p>Simulates 150 rapid requests from current IP — triggers rate limiter and burst detection.</p>
+              <button class="btn-sim" onclick="sim('ddos')">▶ SIMULATE</button>
+            </div>
+            <div class="sim-card">
+              <h5>Brute Force</h5>
+              <p>Simulates 50 rapid login attempts — triggers lockout and blocks IP for 300s.</p>
+              <button class="btn-sim" onclick="sim('brute-force')">▶ SIMULATE</button>
+            </div>
+            <div class="sim-card">
+              <h5>Session Misuse</h5>
+              <p>Simulates session token stolen and replayed with different fingerprint (sniffing).</p>
+              <button class="btn-sim" onclick="sim('session-misuse')">▶ SIMULATE</button>
+            </div>
+          </div>
+          <div class="sim-out" id="sim-out">// Output will appear here after simulation</div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<script>
+// ── Panel nav ──
+function show(name,el){
+  document.querySelectorAll(".panel").forEach(p=>p.classList.remove("active"));
+  document.querySelectorAll(".nav-item").forEach(a=>a.classList.remove("active"));
+  document.getElementById("panel-"+name).classList.add("active");
+  document.getElementById("pg-title").textContent=name.toUpperCase();
+  el.classList.add("active");
+  if(name==="sessions")loadSessions();
+  else if(name==="alerts")loadAlerts();
+  else if(name==="logs")loadLogs();
+  else loadStats();
+}
+
+// ── Stats ──
+async function loadStats(){
+  const d=await(await fetch("/api/stats")).json();
+  document.getElementById("s-online").textContent=d.online;
+  document.getElementById("s-sess").textContent=d.sessions;
+  document.getElementById("s-alerts").textContent=d.alerts_total;
+  document.getElementById("s-crit").textContent=d.alerts_critical;
+  document.getElementById("s-blocked").textContent=d.blocked_ips;
+  document.getElementById("s-probes").textContent=d.suspicious_probes;
+
+  const tb=d.threat_breakdown;const tot=Math.max(1,tb.Normal+tb.Suspicious+tb.Attack);
+  document.getElementById("threat-bars").innerHTML=`
+    <div class="tbar-row"><span>Normal</span>
+      <div class="tbar"><div class="tbar-fill n" style="width:${tb.Normal/tot*100}%"></div></div>
+      <span>${tb.Normal}</span></div>
+    <div class="tbar-row"><span>Suspicious</span>
+      <div class="tbar"><div class="tbar-fill s" style="width:${tb.Suspicious/tot*100}%"></div></div>
+      <span>${tb.Suspicious}</span></div>
+    <div class="tbar-row"><span>Attack</span>
+      <div class="tbar"><div class="tbar-fill a" style="width:${tb.Attack/tot*100}%"></div></div>
+      <span>${tb.Attack}</span></div>`;
+}
+
+// ── Sessions ──
+async function loadSessions(){
+  const d=await(await fetch("/api/sessions")).json();
+  document.getElementById("sess-tbody").innerHTML=d.sessions.map(s=>`
+    <tr>
+      <td>${esc(s.username)}</td>
+      <td><code style="color:var(--cyan2)">${esc(s.ip)}</code></td>
+      <td style="font-family:var(--mono)">${s.threat_score}</td>
+      <td><span class="badge-${s.threat_level[0].toLowerCase()}">${s.threat_level}</span></td>
+      <td style="font-family:var(--mono);font-size:.7rem">${new Date(s.last_seen*1000).toLocaleTimeString()}</td>
+      <td><button class="btn-kick" onclick="kick('${s.id}')">KICK</button></td>
+    </tr>`).join("")||`<tr><td colspan="6" style="text-align:center;color:var(--t3);font-family:var(--mono);padding:1.5rem">No active sessions</td></tr>`;
+}
+async function kick(id){
+  await fetch(`/api/kick/${id}`,{method:"POST"});loadSessions();
+}
+
+// ── Alerts ──
+async function loadAlerts(){
+  const d=await(await fetch("/api/alerts?limit=100")).json();
+  document.getElementById("alerts-tbody").innerHTML=d.alerts.map(a=>`
+    <tr>
+      <td style="font-family:var(--mono);font-size:.7rem;white-space:nowrap">${new Date(a.timestamp*1000).toLocaleTimeString()}</td>
+      <td><code>${esc(a.alert_type)}</code></td>
+      <td><span class="sev-${a.severity}">${a.severity.toUpperCase()}</span></td>
+      <td style="max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(a.description)}</td>
+      <td style="font-family:var(--mono);font-size:.7rem">${esc(a.ip||"—")}</td>
+    </tr>`).join("")||`<tr><td colspan="5" style="text-align:center;color:var(--t3);font-family:var(--mono);padding:1.5rem">No alerts</td></tr>`;
+}
+
+// ── Logs ──
+async function loadLogs(){
+  const d=await(await fetch("/api/logs")).json();
+  document.getElementById("logs-tbody").innerHTML=d.logs.map(l=>`
+    <tr>
+      <td style="font-family:var(--mono);font-size:.7rem;white-space:nowrap">${new Date(l.timestamp*1000).toLocaleTimeString()}</td>
+      <td><code style="color:var(--cyan2)">${esc(l.ip)}</code></td>
+      <td><span class="m-${(l.method||"").toLowerCase()}">${l.method}</span></td>
+      <td style="font-family:var(--mono);font-size:.72rem">${esc(l.path)}</td>
+      <td style="font-family:var(--mono)">${l.payload_size}B</td>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.7rem;color:var(--t2)">${esc(l.user_agent||"—")}</td>
+    </tr>`).join("");
+}
+
+// ── Simulation ──
+async function sim(type){
+  const out=document.getElementById("sim-out");
+  out.innerHTML=`<span style="color:var(--cyan)">Running ${type}…</span>`;
+  const d=await(await fetch(`/simulate/${type}`,{method:"POST"})).json();
+  out.innerHTML=`<strong>${d.attack}</strong><br><span style="color:var(--t2)">${d.detail}</span><br><span class="ok">✓ Alert raised: ${d.alert_raised}</span>`;
+  setTimeout(loadStats,800);
+}
+
+// ── Dashboard WebSocket (live alerts) ──
+let dws;
+function dashConnect(){
+  const proto=location.protocol==="https:"?"wss":"ws";
+  dws=new WebSocket(`${proto}://${location.host}/ws/dashboard`);
+  dws.onopen=()=>{
+    document.getElementById("ws-dot").className="status-dot live";
+    document.getElementById("ws-lbl").textContent="Live";
+  };
+  dws.onmessage=e=>{
+    const msg=JSON.parse(e.data);
+    if(msg.type==="alert")pushLive(msg.data);
+  };
+  dws.onclose=()=>{
+    document.getElementById("ws-dot").className="status-dot";
+    document.getElementById("ws-lbl").textContent="Reconnecting…";
+    setTimeout(dashConnect,3000);
+  };
+  // send periodic pings to keep alive
+  setInterval(()=>{if(dws&&dws.readyState===1)dws.send("ping")},25000);
+}
+function pushLive(a){
+  const el=document.getElementById("live-stream");
+  const old=el.querySelector("span");if(old)old.remove();
+  const d=document.createElement("div");
+  d.className=`ls-item ${a.severity}`;
+  d.innerHTML=`<span class="ls-ts">${new Date(a.timestamp*1000).toLocaleTimeString()}</span>`+
+    `<code style="color:var(--t1)">${esc(a.type)}</code> — ${esc(a.description)}`;
+  el.insertBefore(d,el.firstChild);
+  if(el.children.length>20)el.removeChild(el.lastChild);
+  loadStats();
+}
+
+function refresh(){
+  loadStats();
+  const active=document.querySelector(".panel.active").id.replace("panel-","");
+  if(active==="sessions")loadSessions();
+  else if(active==="alerts")loadAlerts();
+  else if(active==="logs")loadLogs();
+}
+function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}
+
+loadStats();dashConnect();setInterval(loadStats,10000);
+</script>
+</body>
+</html>
