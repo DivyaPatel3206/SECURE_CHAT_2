@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SecureChat — Protected Real-Time Chat</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#080d14;--surface:#0d1520;--panel:#111e2e;--border:#1a2d45;
+  --cyan:#00e5ff;--cyan2:#00b4cc;--green:#39ff85;--red:#ff3355;--amber:#ffb700;
+  --t1:#d4e8f7;--t2:#6b8fad;--t3:#2a4460;
+  --mono:'DM Mono',monospace;--sans:'Syne',sans-serif;
+  --r:6px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--t1);font-family:var(--sans);overflow-x:hidden}
+a{color:var(--cyan);text-decoration:none}
+
+/* noise overlay */
+body::before{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  opacity:.4;
+}
+
+/* hex grid bg */
+body::after{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:
+    radial-gradient(ellipse 70% 60% at 80% 20%, rgba(0,229,255,.05) 0%,transparent 60%),
+    radial-gradient(ellipse 50% 50% at 20% 80%, rgba(57,255,133,.04) 0%,transparent 50%);
+}
+
+/* ── TOPBAR ── */
+.topbar{
+  position:fixed;top:0;left:0;right:0;height:56px;z-index:100;
+  background:rgba(8,13,20,.9);border-bottom:1px solid var(--border);
+  backdrop-filter:blur(12px);
+  display:flex;align-items:center;justify-content:space-between;padding:0 2.5rem;
+}
+.brand{display:flex;align-items:center;gap:.75rem}
+.brand-icon{
+  width:32px;height:32px;border:1.5px solid var(--cyan);
+  clip-path:polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(0,229,255,.08);font-size:.6rem;color:var(--cyan);
+  font-family:var(--mono);
+}
+.brand-name{font-family:var(--sans);font-weight:800;font-size:1rem;letter-spacing:.04em;color:var(--t1)}
+.brand-name em{color:var(--cyan);font-style:normal}
+.topbar-right{display:flex;align-items:center;gap:1.5rem}
+.nav-a{font-family:var(--mono);font-size:.75rem;color:var(--t2);letter-spacing:.1em;transition:color .2s}
+.nav-a:hover{color:var(--cyan)}
+.live-dot{
+  display:flex;align-items:center;gap:.4rem;
+  font-family:var(--mono);font-size:.7rem;color:var(--green);
+}
+.live-dot::before{
+  content:'';width:7px;height:7px;border-radius:50%;
+  background:var(--green);box-shadow:0 0 8px var(--green);
+  animation:blink 2s infinite;
+}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* ── HERO ── */
+.hero{
+  position:relative;z-index:1;
+  display:grid;grid-template-columns:1fr 480px;gap:5rem;
+  padding:10rem 5rem 5rem;min-height:100vh;align-items:center;
+}
+.eyebrow{
+  font-family:var(--mono);font-size:.72rem;color:var(--cyan);
+  letter-spacing:.25em;margin-bottom:1.2rem;
+  display:flex;align-items:center;gap:.6rem;
+}
+.eyebrow::before{content:'';flex:0 0 24px;height:1px;background:var(--cyan)}
+h1{
+  font-size:3.8rem;font-weight:800;line-height:1.05;
+  color:var(--t1);margin-bottom:1.5rem;
+}
+h1 .accent{
+  display:block;color:transparent;
+  -webkit-text-stroke:1.5px var(--cyan);
+  font-size:4.2rem;
+}
+.hero-sub{
+  color:var(--t2);font-size:1rem;line-height:1.8;max-width:460px;
+  margin-bottom:3rem;
+}
+
+/* Badges row */
+.badges{display:flex;flex-wrap:wrap;gap:.6rem;margin-bottom:2.5rem}
+.badge{
+  font-family:var(--mono);font-size:.7rem;letter-spacing:.12em;
+  padding:.35rem .8rem;border-radius:var(--r);border:1px solid var(--border);
+  color:var(--t2);background:var(--panel);
+  display:flex;align-items:center;gap:.4rem;
+}
+.badge.hi{border-color:rgba(0,229,255,.3);color:var(--cyan);background:rgba(0,229,255,.06)}
+
+/* Login card */
+.login-card{
+  background:var(--panel);border:1px solid var(--border);
+  border-radius:var(--r);padding:1.8rem;position:relative;overflow:hidden;
+}
+.login-card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,transparent,var(--cyan),transparent);
+}
+.login-card h3{
+  font-family:var(--mono);font-size:.75rem;color:var(--cyan);
+  letter-spacing:.2em;margin-bottom:1.2rem;
+}
+.input-group{margin-bottom:.8rem}
+.input-group label{
+  display:block;font-family:var(--mono);font-size:.65rem;
+  color:var(--t2);letter-spacing:.12em;margin-bottom:.4rem;
+}
+.input-group input{
+  width:100%;background:var(--bg);border:1px solid var(--border);
+  color:var(--t1);padding:.7rem .9rem;border-radius:var(--r);
+  font-family:var(--mono);font-size:.85rem;outline:none;transition:border-color .2s;
+}
+.input-group input:focus{border-color:var(--cyan)}
+.input-group input::placeholder{color:var(--t3)}
+.btn-enter{
+  width:100%;padding:.85rem;margin-top:.4rem;
+  background:var(--cyan);color:#000;border:none;
+  font-family:var(--sans);font-weight:700;font-size:.85rem;letter-spacing:.15em;
+  border-radius:var(--r);cursor:pointer;transition:all .2s;
+}
+.btn-enter:hover{background:#33ecff;transform:translateY(-1px)}
+.btn-enter:disabled{background:var(--t3);cursor:not-allowed;transform:none}
+.msg-line{font-family:var(--mono);font-size:.75rem;margin-top:.6rem;min-height:1.2em;text-align:center}
+
+/* Right panel — terminal */
+.right-stack{display:flex;flex-direction:column;gap:1.2rem}
+.terminal{
+  background:#050b10;border:1px solid var(--border);
+  border-radius:var(--r);overflow:hidden;
+}
+.term-bar{
+  background:var(--panel);padding:.55rem 1rem;
+  display:flex;align-items:center;gap:.4rem;border-bottom:1px solid var(--border);
+}
+.dot{width:10px;height:10px;border-radius:50%}
+.dot.r{background:#ff5f57}.dot.y{background:#ffbd2e}.dot.g{background:#28ca41}
+.term-title{font-family:var(--mono);font-size:.7rem;color:var(--t2);margin-left:.5rem}
+.term-body{
+  padding:1rem;height:220px;overflow-y:auto;
+  font-family:var(--mono);font-size:.72rem;line-height:1.9;
+}
+.ll{color:var(--t2)}.ll .ts{color:var(--cyan2);margin-right:.5rem}
+.ll.ok .ts{color:var(--green)}.ll.warn .ts{color:var(--amber)}.ll.err .ts{color:var(--red)}
+.ll.fresh{animation:fadeup .4s ease}
+@keyframes fadeup{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
+
+/* Threat gauge */
+.gauge-card{
+  background:var(--panel);border:1px solid var(--border);
+  border-radius:var(--r);padding:1.1rem 1.2rem;
+}
+.gauge-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:.8rem}
+.gauge-label{font-family:var(--mono);font-size:.65rem;color:var(--t2);letter-spacing:.2em}
+.gauge-status{font-family:var(--mono);font-size:.75rem;letter-spacing:.15em}
+.gauge-track{background:var(--bg);border-radius:2px;height:6px;overflow:hidden}
+.gauge-fill{height:100%;border-radius:2px;transition:width 1s ease,background 1s}
+
+/* Feature strip */
+.features{
+  display:grid;grid-template-columns:1fr 1fr;gap:.7rem;
+}
+.feat{
+  background:var(--panel);border:1px solid var(--border);
+  border-radius:var(--r);padding:.9rem 1rem;
+  display:flex;align-items:flex-start;gap:.8rem;
+  transition:border-color .2s;
+}
+.feat:hover{border-color:var(--cyan2)}
+.feat-ic{font-size:1.2rem;flex-shrink:0;line-height:1}
+.feat strong{display:block;font-size:.82rem;color:var(--t1);margin-bottom:.15rem}
+.feat small{font-family:var(--mono);font-size:.68rem;color:var(--t2)}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-icon">SC</div>
+    <span class="brand-name">Secure<em>Chat</em></span>
+  </div>
+  <div class="topbar-right">
+    <a href="/chat/general" class="nav-a">CHAT</a>
+    <a href="/dashboard" class="nav-a">DASHBOARD</a>
+    <span class="live-dot">IDS ACTIVE</span>
+  </div>
+</header>
+
+<main class="hero">
+  <div>
+    <p class="eyebrow">SECURE COMMUNICATIONS SYSTEM</p>
+    <h1>
+      Real-Time Chat.
+      <span class="accent">Zero Trust.</span>
+    </h1>
+    <p class="hero-sub">
+      Anti-sniffing session binding, DDoS burst protection, brute-force
+      lockout, canary probe tokens, and behavioral analysis — all running
+      silently in the background.
+    </p>
+
+    <div class="badges">
+      <span class="badge hi">⬡ WebSocket Encrypted</span>
+      <span class="badge hi">⬡ Session Binding</span>
+      <span class="badge hi">⬡ DDoS Shield</span>
+      <span class="badge">QR Room Access</span>
+      <span class="badge">Geo-IP Tracking</span>
+      <span class="badge">Probe Tokens</span>
+    </div>
+
+    <div class="login-card">
+      <h3>// INITIALIZE SECURE SESSION</h3>
+      <div class="input-group">
+        <label>CALLSIGN</label>
+        <input id="uname" type="text" placeholder="Enter your username…" maxlength="32" autocomplete="off">
+      </div>
+      <button class="btn-enter" id="enter-btn" onclick="register()">ENTER SECURE SYSTEM</button>
+      <p class="msg-line" id="msg"></p>
+    </div>
+
+    <div class="features" style="margin-top:1.2rem">
+      <div class="feat"><span class="feat-ic">🔐</span><div><strong>Session Binding</strong><small>Token ↔ Fingerprint ↔ IP</small></div></div>
+      <div class="feat"><span class="feat-ic">🛡</span><div><strong>DDoS Guard</strong><small>Rate limit + burst detect</small></div></div>
+      <div class="feat"><span class="feat-ic">👁</span><div><strong>Canary Probes</strong><small>Sniffing detection tokens</small></div></div>
+      <div class="feat"><span class="feat-ic">📱</span><div><strong>QR Room Join</strong><small>Single-use device-bound</small></div></div>
+    </div>
+  </div>
+
+  <div class="right-stack">
+    <div class="terminal">
+      <div class="term-bar">
+        <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+        <span class="term-title">ids_engine.log</span>
+      </div>
+      <div class="term-body" id="tlog">
+        <div class="ll ok"><span class="ts">[BOOT]</span>IDS engine initialised</div>
+        <div class="ll ok"><span class="ts">[OK]</span>Session binding: active</div>
+        <div class="ll ok"><span class="ts">[OK]</span>Probe tokens armed</div>
+        <div class="ll ok"><span class="ts">[OK]</span>Rate limiter: 120 req/min</div>
+        <div class="ll"><span class="ts">[INFO]</span>Geo-IP lookup ready</div>
+        <div class="ll"><span class="ts">[WAIT]</span>Awaiting connections…</div>
+      </div>
+    </div>
+
+    <div class="gauge-card">
+      <div class="gauge-header">
+        <span class="gauge-label">SYSTEM THREAT LEVEL</span>
+        <span class="gauge-status" id="g-status" style="color:var(--green)">NOMINAL</span>
+      </div>
+      <div class="gauge-track"><div class="gauge-fill" id="g-fill" style="width:4%;background:var(--green)"></div></div>
+    </div>
+  </div>
+</main>
+
+<script>
+const FP={ua:navigator.userAgent,sc:`${screen.width}x${screen.height}`,tz:Intl.DateTimeFormat().resolvedOptions().timeZone};
+
+/* ── live log ── */
+const LOG_MSGS=[
+  {c:"ok",t:"[SCAN]",m:"Checking fingerprints…"},
+  {c:"ok",t:"[PROBE]",m:"Canary tokens injected"},
+  {c:"",t:"[GEO]",m:"Location tracking online"},
+  {c:"",t:"[RATE]",m:"Burst detection window reset"},
+  {c:"warn",t:"[WATCH]",m:"Monitoring request patterns"},
+  {c:"",t:"[INFO]",m:"Zero-trust validation pass"},
+];
+let li=0;
+setInterval(()=>{
+  const el=document.getElementById("tlog");
+  const d=LOG_MSGS[li%LOG_MSGS.length];li++;
+  const div=document.createElement("div");
+  div.className=`ll ${d.c} fresh`;
+  div.innerHTML=`<span class="ts">${new Date().toLocaleTimeString()}</span>${d.m}`;
+  el.appendChild(div);
+  if(el.children.length>14)el.removeChild(el.firstChild);
+  el.scrollTop=el.scrollHeight;
+},2200);
+
+/* ── threat gauge animation ── */
+let tv=4;
+setInterval(()=>{
+  tv=Math.max(2,Math.min(90,tv+(Math.random()*8-3)));
+  const fill=document.getElementById("g-fill");
+  const stat=document.getElementById("g-status");
+  const col=tv>65?"var(--red)":tv>30?"var(--amber)":"var(--green)";
+  fill.style.width=tv+"%";fill.style.background=col;
+  stat.textContent=tv>65?"ELEVATED":tv>30?"WATCH":"NOMINAL";
+  stat.style.color=col;
+},1800);
+
+/* ── register ── */
+async function register(){
+  const uname=document.getElementById("uname").value.trim();
+  const msg=document.getElementById("msg");
+  if(!uname){msg.style.color="var(--red)";msg.textContent="✗ Callsign required";return;}
+  const btn=document.getElementById("enter-btn");
+  btn.disabled=true;btn.textContent="AUTHENTICATING…";
+  try{
+    const r=await fetch("/auth/register",{
+      method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({username:uname,user_agent:FP.ua,screen_res:FP.sc,timezone:FP.tz})
+    });
+    const d=await r.json();
+    if(!r.ok)throw new Error(d.detail||"Failed");
+    sessionStorage.setItem("st",d.session_token);
+    sessionStorage.setItem("un",d.username);
+    sessionStorage.setItem("pt",d.probe_token);   // silent
+    msg.style.color="var(--green)";msg.textContent="✓ Session established — redirecting…";
+    setTimeout(()=>location.href="/chat/general",600);
+  }catch(e){
+    msg.style.color="var(--red)";msg.textContent="✗ "+e.message;
+    btn.disabled=false;btn.textContent="ENTER SECURE SYSTEM";
+  }
+}
+document.getElementById("uname").addEventListener("keydown",e=>e.key==="Enter"&&register());
+</script>
+</body>
+</html>
