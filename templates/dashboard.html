@@ -2,443 +2,757 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
 <title>SecureChat — Dashboard</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<!-- Leaflet Map CSS -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <style>
 :root{
-  --bg:#080d14;--surface:#0d1520;--panel:#111e2e;--panel2:#152030;
-  --border:#1a2d45;--border2:#243d58;
-  --cyan:#00e5ff;--cyan2:#00b4cc;--green:#39ff85;--red:#ff3355;--amber:#ffb700;
-  --t1:#d4e8f7;--t2:#6b8fad;--t3:#2a4460;
-  --mono:'DM Mono',monospace;--sans:'Syne',sans-serif;--r:6px;
+  --bg:#060c14;--panel:#0d1a28;--card:#111e2e;--card2:#162436;
+  --border:#1c2f45;--border2:#243d5a;
+  --cyan:#00e5ff;--cyan2:#00b4cc;--green:#39ff85;--red:#ff3355;--amber:#ffb700;--purple:#b060ff;
+  --t1:#daeeff;--t2:#6b90b8;--t3:#243a55;
+  --mono:'DM Mono',monospace;--sans:'Syne',sans-serif;--r:8px;
+  --sb:200px;--topbar:54px;
 }
-*{box-sizing:border-box;margin:0;padding:0}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;overflow:hidden}
 body{background:var(--bg);color:var(--t1);font-family:var(--sans)}
+button{font-family:inherit;cursor:pointer;border:none;outline:none}
 a{color:var(--cyan);text-decoration:none}
 ::-webkit-scrollbar{width:3px;height:3px}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
 
-.layout{display:grid;grid-template-columns:196px 1fr;height:100vh}
+/* ══ LAYOUT ══ */
+.layout{display:flex;height:100vh;overflow:hidden}
 
-/* ── SIDEBAR ── */
+/* ══ SIDEBAR ══ */
 .sidebar{
+  width:var(--sb);flex-shrink:0;
   background:var(--panel);border-right:1px solid var(--border);
-  display:flex;flex-direction:column;
+  display:flex;flex-direction:column;overflow:hidden;
+  transition:transform .3s cubic-bezier(.4,0,.2,1);
+  z-index:200;
 }
-.sb-top{padding:.9rem 1rem;border-bottom:1px solid var(--border)}
-.brand{font-family:var(--sans);font-weight:800;font-size:.9rem;color:var(--t1);display:block}
+.sb-head{padding:.85rem 1rem;border-bottom:1px solid var(--border)}
+.brand{font-weight:800;font-size:.9rem;color:var(--t1)}
 .brand em{color:var(--cyan);font-style:normal}
-.sub-label{font-family:var(--mono);font-size:.6rem;color:var(--t2);letter-spacing:.15em;margin-top:.2rem}
-.nav{padding:.6rem 0;flex:1}
-.nav-item{
-  display:block;padding:.6rem 1.1rem;
-  font-family:var(--mono);font-size:.72rem;letter-spacing:.08em;
-  color:var(--t2);cursor:pointer;transition:all .15s;border-left:2px solid transparent;
+.brand-sub{font-family:var(--mono);font-size:.58rem;color:var(--t2);letter-spacing:.15em;margin-top:2px}
+.nav{padding:.5rem 0;flex:1;overflow-y:auto}
+.nav-a{
+  display:flex;align-items:center;gap:.55rem;
+  padding:.6rem 1rem;font-family:var(--mono);font-size:.7rem;
+  letter-spacing:.08em;color:var(--t2);cursor:pointer;
+  border-left:2px solid transparent;transition:all .15s;
 }
-.nav-item:hover,.nav-item.active{color:var(--cyan);background:rgba(0,229,255,.05);border-left-color:var(--cyan)}
+.nav-a:hover{color:var(--t1);background:rgba(255,255,255,.03)}
+.nav-a.active{color:var(--cyan);background:rgba(0,229,255,.06);border-left-color:var(--cyan)}
+.nav-a .ni{font-size:.85rem;width:18px;text-align:center}
 .sb-bot{
-  padding:.8rem 1rem;border-top:1px solid var(--border);
+  padding:.75rem 1rem;border-top:1px solid var(--border);
   display:flex;align-items:center;gap:.5rem;
 }
-.status-dot{width:7px;height:7px;border-radius:50%;background:var(--t3)}
-.status-dot.live{background:var(--green);box-shadow:0 0 6px var(--green);animation:blink 2s infinite}
+.live-dot{width:7px;height:7px;border-radius:50%;background:var(--t3);flex-shrink:0}
+.live-dot.on{background:var(--green);box-shadow:0 0 6px var(--green);animation:blink 2s infinite}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
-.status-txt{font-family:var(--mono);font-size:.68rem;color:var(--t2)}
+.live-lbl{font-family:var(--mono);font-size:.65rem;color:var(--t2)}
 
-/* ── MAIN ── */
-.main{display:flex;flex-direction:column;overflow:hidden}
+/* ══ MAIN ══ */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
 .topbar{
-  padding:.7rem 1.5rem;background:var(--panel);border-bottom:1px solid var(--border);
-  display:flex;align-items:center;justify-content:space-between;flex-shrink:0;
+  height:var(--topbar);flex-shrink:0;
+  background:var(--panel);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;padding:0 1.2rem;gap:.8rem;
 }
-.page-title{font-family:var(--mono);font-size:.85rem;letter-spacing:.2em;color:var(--t1)}
-.topbar-actions{display:flex;gap:.6rem}
+.ham-btn{
+  display:none;width:36px;height:36px;background:none;
+  flex-direction:column;align-items:center;justify-content:center;gap:5px;
+  border-radius:8px;flex-shrink:0;
+}
+.ham-btn span{display:block;width:16px;height:2px;background:var(--t2);border-radius:2px}
+.pg-title{font-family:var(--mono);font-size:.82rem;letter-spacing:.2em;color:var(--t1);flex:1}
+.tb-actions{display:flex;gap:.5rem}
 .btn-sm{
   background:none;border:1px solid var(--border);color:var(--t2);
-  font-family:var(--mono);font-size:.68rem;padding:.3rem .7rem;
-  border-radius:4px;cursor:pointer;letter-spacing:.08em;transition:all .2s;
+  font-family:var(--mono);font-size:.65rem;padding:.28rem .65rem;
+  border-radius:6px;transition:all .2s;
 }
 .btn-sm:hover{border-color:var(--cyan);color:var(--cyan)}
 
-.panels{flex:1;overflow-y:auto;padding:1.4rem}
+.content{flex:1;overflow-y:auto;padding:1.2rem}
 .panel{display:none}.panel.active{display:block}
 
-/* stat cards */
-.stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.9rem;margin-bottom:1.4rem}
-.stat-card{
-  background:var(--panel);border:1px solid var(--border);
-  border-radius:var(--r);padding:1.1rem 1.2rem;
-  transition:border-color .2s;position:relative;overflow:hidden;
+/* ══ STAT CARDS ══ */
+.stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.85rem;margin-bottom:1.2rem}
+.sc{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:var(--r);padding:1rem 1.1rem;position:relative;overflow:hidden;
+  transition:border-color .2s;
 }
-.stat-card::after{
+.sc::after{
   content:'';position:absolute;top:0;left:0;right:0;height:2px;
-  background:var(--card-color,var(--cyan));opacity:.4;
+  background:var(--c,var(--cyan));opacity:.5;
 }
-.stat-card:hover{border-color:var(--border2)}
-.stat-val{font-family:var(--mono);font-size:2rem;font-weight:500;margin-bottom:.25rem}
-.stat-lbl{font-family:var(--mono);font-size:.65rem;color:var(--t2);letter-spacing:.15em}
+.sc:hover{border-color:var(--border2)}
+.sc-val{font-family:var(--mono);font-size:1.9rem;font-weight:500;margin-bottom:.2rem;color:var(--c,var(--cyan))}
+.sc-lbl{font-family:var(--mono);font-size:.6rem;color:var(--t2);letter-spacing:.15em}
 
-.row2{display:grid;grid-template-columns:1fr 1fr;gap:.9rem}
-.box{background:var(--panel);border:1px solid var(--border);border-radius:var(--r);padding:1.1rem;overflow:hidden}
-.box h4{font-family:var(--mono);font-size:.65rem;color:var(--t2);letter-spacing:.18em;margin-bottom:.9rem}
+/* ══ 2-col row ══ */
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:.85rem;margin-bottom:1.2rem}
+.box{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:1rem;overflow:hidden}
+.box-title{font-family:var(--mono);font-size:.6rem;color:var(--t2);letter-spacing:.18em;margin-bottom:.85rem}
 
 /* threat bars */
-.tbar-row{display:flex;align-items:center;gap:.7rem;margin-bottom:.6rem;font-size:.8rem}
-.tbar-row>span:first-child{width:85px;color:var(--t2);font-family:var(--mono);font-size:.72rem}
-.tbar-row>span:last-child{width:28px;text-align:right;font-family:var(--mono);font-size:.72rem}
-.tbar{flex:1;background:var(--bg);height:6px;border-radius:2px;overflow:hidden}
-.tbar-fill{height:100%;border-radius:2px;transition:width .7s ease}
-.tbar-fill.n{background:var(--green)}.tbar-fill.s{background:var(--amber)}.tbar-fill.a{background:var(--red)}
+.tb-row{display:flex;align-items:center;gap:.6rem;margin-bottom:.55rem}
+.tb-row>span:first-child{width:82px;font-family:var(--mono);font-size:.68rem;color:var(--t2)}
+.tb-row>span:last-child{width:26px;text-align:right;font-family:var(--mono);font-size:.68rem;color:var(--t1)}
+.tb{flex:1;background:var(--bg);height:5px;border-radius:2px;overflow:hidden}
+.tbf{height:100%;border-radius:2px;transition:width .8s ease}
+.tbf.n{background:var(--green)}.tbf.s{background:var(--amber)}.tbf.a{background:var(--red)}
 
-/* live stream */
-.live-stream{display:flex;flex-direction:column;gap:.35rem;max-height:220px;overflow-y:auto}
-.ls-item{
-  font-family:var(--mono);font-size:.68rem;padding:.4rem .6rem;
-  border-left:2px solid;border-radius:0 4px 4px 0;line-height:1.5;
+/* live alert stream */
+.alert-stream{max-height:210px;overflow-y:auto;display:flex;flex-direction:column;gap:.3rem}
+.as-item{
+  font-family:var(--mono);font-size:.65rem;padding:.38rem .55rem;
+  border-left:2px solid;border-radius:0 5px 5px 0;line-height:1.5;
+  animation:afade .3s ease;
 }
-.ls-item.critical,.ls-item.high{border-color:var(--red);background:rgba(255,51,85,.07)}
-.ls-item.medium{border-color:var(--amber);background:rgba(255,183,0,.07)}
-.ls-item.low,.ls-item.info{border-color:var(--cyan2);background:rgba(0,229,255,.06)}
-.ls-ts{color:var(--t2);font-size:.63rem;margin-right:.4rem}
+@keyframes afade{from{opacity:0;transform:translateX(-6px)}to{opacity:1;transform:none}}
+.as-item.critical,.as-item.high{border-color:var(--red);background:rgba(255,51,85,.08)}
+.as-item.medium{border-color:var(--amber);background:rgba(255,183,0,.07)}
+.as-item.low{border-color:var(--cyan2);background:rgba(0,229,255,.06)}
+.as-ts{color:var(--t3);font-size:.62rem;margin-right:.35rem}
 
-/* tables */
+/* ══ MAP PANEL ══ */
+#map{height:420px;border-radius:var(--r);overflow:hidden;border:1px solid var(--border)}
+.map-legend{
+  display:flex;flex-wrap:wrap;gap:.6rem;margin-top:.7rem;margin-bottom:1.2rem;
+}
+.ml-item{
+  display:flex;align-items:center;gap:.4rem;
+  font-family:var(--mono);font-size:.65rem;color:var(--t2);
+}
+.ml-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+
+/* ══ TABLE ══ */
 .tbl{width:100%;border-collapse:collapse;font-size:.78rem}
 .tbl th{
-  font-family:var(--mono);font-size:.63rem;letter-spacing:.15em;
-  color:var(--t2);padding:.55rem .7rem;text-align:left;
-  border-bottom:1px solid var(--border);white-space:nowrap;
+  font-family:var(--mono);font-size:.6rem;letter-spacing:.14em;color:var(--t2);
+  padding:.5rem .7rem;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap;
 }
-.tbl td{padding:.5rem .7rem;border-bottom:1px solid var(--border);color:var(--t1)}
-.tbl tr:hover td{background:rgba(0,229,255,.03)}
-.badge-n{color:var(--green);font-family:var(--mono);font-size:.68rem}
-.badge-s{color:var(--amber);font-family:var(--mono);font-size:.68rem}
-.badge-a{color:var(--red);font-family:var(--mono);font-size:.68rem}
-.sev-c,.sev-critical{color:#ff0033;font-family:var(--mono);font-size:.68rem}
-.sev-high{color:var(--red);font-family:var(--mono);font-size:.68rem}
-.sev-medium{color:var(--amber);font-family:var(--mono);font-size:.68rem}
-.sev-low{color:var(--cyan2);font-family:var(--mono);font-size:.68rem}
-.m-get{color:var(--green);font-family:var(--mono);font-size:.7rem}
-.m-post{color:var(--cyan);font-family:var(--mono);font-size:.7rem}
-.m-delete{color:var(--red);font-family:var(--mono);font-size:.7rem}
-
-/* kick btn */
+.tbl td{padding:.48rem .7rem;border-bottom:1px solid var(--border);color:var(--t1)}
+.tbl tr:hover td{background:rgba(0,229,255,.025)}
+.badge-N,.badge-n{color:var(--green);font-family:var(--mono);font-size:.65rem}
+.badge-S,.badge-s{color:var(--amber);font-family:var(--mono);font-size:.65rem}
+.badge-A,.badge-a{color:var(--red);font-family:var(--mono);font-size:.65rem}
+.sev-critical{color:#ff0033;font-family:var(--mono);font-size:.65rem}
+.sev-high{color:var(--red);font-family:var(--mono);font-size:.65rem}
+.sev-medium{color:var(--amber);font-family:var(--mono);font-size:.65rem}
+.sev-low{color:var(--cyan2);font-family:var(--mono);font-size:.65rem}
+.m-get{color:var(--green);font-family:var(--mono);font-size:.67rem}
+.m-post{color:var(--cyan);font-family:var(--mono);font-size:.67rem}
 .btn-kick{
-  background:rgba(255,51,85,.12);color:var(--red);
-  border:1px solid rgba(255,51,85,.25);
-  font-family:var(--mono);font-size:.65rem;padding:.2rem .5rem;
-  border-radius:4px;cursor:pointer;transition:all .2s;
+  background:rgba(255,51,85,.1);color:var(--red);border:1px solid rgba(255,51,85,.25);
+  font-family:var(--mono);font-size:.62rem;padding:.2rem .5rem;border-radius:5px;
 }
-.btn-kick:hover{background:rgba(255,51,85,.25)}
+.btn-kick:hover{background:rgba(255,51,85,.22)}
 
-/* simulation */
-.sim-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.9rem;margin-bottom:1.2rem}
+/* ══ SIMULATION PANEL ══ */
+.sim-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:.85rem;margin-bottom:1.2rem}
 .sim-card{
-  background:var(--panel);border:1px solid var(--border);
-  border-radius:var(--r);padding:1.1rem;
+  background:var(--card);border:1px solid var(--border);
+  border-radius:var(--r);padding:1.1rem;cursor:pointer;
+  transition:all .2s;position:relative;overflow:hidden;
 }
-.sim-card h5{color:var(--t1);margin-bottom:.5rem;font-size:.88rem}
-.sim-card p{color:var(--t2);font-family:var(--mono);font-size:.7rem;line-height:1.6;margin-bottom:1rem}
-.btn-sim{
+.sim-card:hover{border-color:var(--border2);transform:translateY(-2px)}
+.sim-card.running{border-color:var(--red);box-shadow:0 0 24px rgba(255,51,85,.15)}
+.sim-icon{font-size:2.2rem;margin-bottom:.7rem;display:block}
+.sim-name{font-weight:700;font-size:.95rem;color:var(--t1);margin-bottom:.4rem}
+.sim-desc{font-family:var(--mono);font-size:.67rem;color:var(--t2);line-height:1.65;margin-bottom:1rem}
+.sim-btn{
   width:100%;padding:.55rem;
   background:rgba(255,51,85,.1);color:var(--red);
-  border:1px solid rgba(255,51,85,.25);border-radius:4px;
-  font-family:var(--mono);font-size:.72rem;cursor:pointer;letter-spacing:.1em;transition:all .2s;
+  border:1px solid rgba(255,51,85,.22);border-radius:6px;
+  font-family:var(--mono);font-size:.7rem;letter-spacing:.1em;transition:all .2s;
 }
-.btn-sim:hover{background:rgba(255,51,85,.22);border-color:var(--red)}
-.sim-out{
+.sim-btn:hover{background:rgba(255,51,85,.2);border-color:var(--red)}
+.sim-pulse{
+  position:absolute;top:.7rem;right:.7rem;
+  width:8px;height:8px;border-radius:50%;
+  background:var(--red);display:none;
+  box-shadow:0 0 10px var(--red);animation:blink .8s infinite;
+}
+.sim-card.running .sim-pulse{display:block}
+
+/* Attack viz area */
+.atk-viz{
   background:var(--bg);border:1px solid var(--border2);
-  border-radius:var(--r);padding:1rem;font-family:var(--mono);
-  font-size:.75rem;min-height:56px;color:var(--t2);line-height:1.8;
+  border-radius:var(--r);padding:1.1rem;min-height:80px;
+  transition:all .3s;
 }
-.sim-out strong{color:var(--t1)}
-.sim-out .ok{color:var(--green)}
+.atk-header{display:flex;align-items:center;gap:.8rem;margin-bottom:1rem}
+.atk-icon{font-size:2.5rem;line-height:1}
+.atk-title{font-weight:800;font-size:1.05rem;color:var(--t1)}
+.atk-subtitle{font-family:var(--mono);font-size:.68rem;color:var(--t2);margin-top:.2rem}
+.atk-explain{
+  background:var(--card);border:1px solid var(--border);border-radius:var(--r);
+  padding:.85rem;margin-bottom:1rem;
+  font-size:.85rem;color:var(--t2);line-height:1.7;
+}
+.atk-explain strong{color:var(--t1)}
+.steps{display:flex;flex-direction:column;gap:.5rem}
+.step{
+  display:flex;align-items:flex-start;gap:.75rem;
+  background:var(--card);border:1px solid var(--border);
+  border-radius:var(--r);padding:.7rem .9rem;
+  animation:stepIn .35s ease both;opacity:0;
+}
+.step.show{animation:stepIn .35s ease forwards}
+@keyframes stepIn{
+  from{opacity:0;transform:translateX(-12px)}
+  to{opacity:1;transform:none}
+}
+.step-icon{font-size:1.4rem;flex-shrink:0;line-height:1.2}
+.step-content{}
+.step-label{font-weight:700;font-size:.82rem;color:var(--t1);margin-bottom:.18rem}
+.step-text{font-family:var(--mono);font-size:.7rem;color:var(--t2);line-height:1.65}
+.atk-result{
+  margin-top:1rem;background:rgba(57,255,133,.07);
+  border:1px solid rgba(57,255,133,.25);border-radius:var(--r);
+  padding:.75rem 1rem;font-family:var(--mono);font-size:.75rem;
+  color:var(--green);line-height:1.6;display:none;
+}
+.atk-idle{font-family:var(--mono);font-size:.75rem;color:var(--t3);padding:.5rem 0}
+
+/* ══ MOBILE ══ */
+@media(max-width:760px){
+  .sidebar{
+    position:fixed;top:0;left:0;bottom:0;z-index:300;
+    transform:translateX(-100%);
+  }
+  .sidebar.open{transform:none}
+  .sb-overlay{
+    position:fixed;inset:0;z-index:290;
+    background:rgba(0,0,0,.65);display:none;
+  }
+  .sb-overlay.show{display:block}
+  .ham-btn{display:flex}
+  .stats-grid{grid-template-columns:1fr 1fr}
+  .row2{grid-template-columns:1fr}
+  .sim-cards{grid-template-columns:1fr}
+  #map{height:300px}
+  .topbar{padding:0 .8rem}
+}
+@media(max-width:480px){
+  .stats-grid{grid-template-columns:1fr 1fr}
+  .content{padding:.8rem}
+}
 </style>
 </head>
 <body>
+<div class="sb-overlay" id="sb-overlay" onclick="closeSB()"></div>
 <div class="layout">
 
-  <aside class="sidebar">
-    <div class="sb-top">
+  <!-- ══ SIDEBAR ══ -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sb-head">
       <a href="/" class="brand">Secure<em>Chat</em></a>
-      <div class="sub-label">ADMIN DASHBOARD</div>
+      <div class="brand-sub">ADMIN DASHBOARD</div>
     </div>
     <nav class="nav">
-      <a class="nav-item active" onclick="show('overview',this)">⊞ Overview</a>
-      <a class="nav-item" onclick="show('sessions',this)">⧉ Sessions</a>
-      <a class="nav-item" onclick="show('alerts',this)">⚠ Alerts</a>
-      <a class="nav-item" onclick="show('logs',this)">≡ Request Logs</a>
-      <a class="nav-item" onclick="show('simulate',this)">⚡ Simulation</a>
+      <a class="nav-a active" onclick="show('overview',this)"><span class="ni">⊞</span> Overview</a>
+      <a class="nav-a" onclick="show('map',this)"><span class="ni">🗺</span> Attack Map</a>
+      <a class="nav-a" onclick="show('sessions',this)"><span class="ni">⧉</span> Sessions</a>
+      <a class="nav-a" onclick="show('alerts',this)"><span class="ni">⚠</span> Alerts</a>
+      <a class="nav-a" onclick="show('logs',this)"><span class="ni">≡</span> Logs</a>
+      <a class="nav-a" onclick="show('simulate',this)"><span class="ni">⚡</span> Simulation</a>
+      <a class="nav-a" href="/chat/general" style="margin-top:.5rem"><span class="ni">💬</span> Chat</a>
     </nav>
     <div class="sb-bot">
-      <span class="status-dot" id="ws-dot"></span>
-      <span class="status-txt" id="ws-lbl">Connecting…</span>
+      <span class="live-dot" id="ws-dot"></span>
+      <span class="live-lbl" id="ws-lbl">Connecting…</span>
     </div>
   </aside>
 
+  <!-- ══ MAIN ══ -->
   <main class="main">
     <div class="topbar">
-      <span class="page-title" id="pg-title">OVERVIEW</span>
-      <div class="topbar-actions">
+      <button class="ham-btn" id="ham" onclick="toggleSB()">
+        <span></span><span></span><span></span>
+      </button>
+      <span class="pg-title" id="pg-title">OVERVIEW</span>
+      <div class="tb-actions">
         <button class="btn-sm" onclick="refresh()">↺ Refresh</button>
-        <a href="/chat/general" class="btn-sm">→ Chat</a>
       </div>
     </div>
 
-    <div class="panels">
+    <div class="content">
 
-      <!-- OVERVIEW -->
+      <!-- ══ OVERVIEW ══ -->
       <div class="panel active" id="panel-overview">
-        <div class="stat-grid">
-          <div class="stat-card" style="--card-color:var(--cyan)">
-            <div class="stat-val" id="s-online" style="color:var(--cyan)">0</div>
-            <div class="stat-lbl">ONLINE USERS</div>
+        <div class="stats-grid">
+          <div class="sc" style="--c:var(--cyan)">
+            <div class="sc-val" id="s-online">0</div><div class="sc-lbl">ONLINE USERS</div>
           </div>
-          <div class="stat-card" style="--card-color:var(--green)">
-            <div class="stat-val" id="s-sess" style="color:var(--green)">0</div>
-            <div class="stat-lbl">ACTIVE SESSIONS</div>
+          <div class="sc" style="--c:var(--green)">
+            <div class="sc-val" id="s-sess">0</div><div class="sc-lbl">ACTIVE SESSIONS</div>
           </div>
-          <div class="stat-card" style="--card-color:var(--amber)">
-            <div class="stat-val" id="s-alerts" style="color:var(--amber)">0</div>
-            <div class="stat-lbl">TOTAL ALERTS</div>
+          <div class="sc" style="--c:var(--amber)">
+            <div class="sc-val" id="s-alerts">0</div><div class="sc-lbl">TOTAL ALERTS</div>
           </div>
-          <div class="stat-card" style="--card-color:var(--red)">
-            <div class="stat-val" id="s-crit" style="color:var(--red)">0</div>
-            <div class="stat-lbl">CRITICAL ALERTS</div>
+          <div class="sc" style="--c:var(--red)">
+            <div class="sc-val" id="s-crit">0</div><div class="sc-lbl">CRITICAL ALERTS</div>
           </div>
-          <div class="stat-card" style="--card-color:var(--red)">
-            <div class="stat-val" id="s-blocked" style="color:var(--red)">0</div>
-            <div class="stat-lbl">BLOCKED IPs</div>
+          <div class="sc" style="--c:var(--red)">
+            <div class="sc-val" id="s-blocked">0</div><div class="sc-lbl">BLOCKED IPs</div>
           </div>
-          <div class="stat-card" style="--card-color:var(--amber)">
-            <div class="stat-val" id="s-probes" style="color:var(--amber)">0</div>
-            <div class="stat-lbl">SUSPICIOUS PROBES</div>
+          <div class="sc" style="--c:var(--purple)">
+            <div class="sc-val" id="s-probes">0</div><div class="sc-lbl">PROBE TRIGGERS</div>
           </div>
         </div>
         <div class="row2">
           <div class="box">
-            <h4>THREAT BREAKDOWN</h4>
+            <div class="box-title">THREAT BREAKDOWN</div>
             <div id="threat-bars"></div>
           </div>
           <div class="box">
-            <h4>LIVE ALERT STREAM</h4>
-            <div class="live-stream" id="live-stream">
-              <span style="font-family:var(--mono);font-size:.7rem;color:var(--t3)">Waiting for alerts…</span>
+            <div class="box-title">LIVE ALERT STREAM</div>
+            <div class="alert-stream" id="live-stream">
+              <span style="font-family:var(--mono);font-size:.68rem;color:var(--t3)">Waiting for alerts…</span>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- SESSIONS -->
-      <div class="panel" id="panel-sessions">
-        <div class="box" style="overflow-x:auto">
-          <h4>ACTIVE SESSIONS</h4>
+      <!-- ══ ATTACK MAP ══ -->
+      <div class="panel" id="panel-map">
+        <div style="margin-bottom:.9rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem">
+          <div>
+            <h3 style="font-size:1rem;font-weight:700;color:var(--t1)">🌍 Live Attack Origin Map</h3>
+            <p style="font-family:var(--mono);font-size:.65rem;color:var(--t2);margin-top:.2rem">
+              Real IP geolocation · Pins update every 15s · Click any marker for details
+            </p>
+          </div>
+          <button class="btn-sm" onclick="loadMap()">↺ Refresh Map</button>
+        </div>
+
+        <div id="map"></div>
+
+        <div class="map-legend">
+          <div class="ml-item"><span class="ml-dot" style="background:#39ff85"></span> Active User</div>
+          <div class="ml-item"><span class="ml-dot" style="background:#ffb700"></span> Suspicious Session</div>
+          <div class="ml-item"><span class="ml-dot" style="background:#ff3355"></span> Attack / Alert Origin</div>
+          <div class="ml-item"><span class="ml-dot" style="background:#b060ff"></span> Session Hijack</div>
+        </div>
+
+        <div class="box" style="margin-top:.5rem">
+          <div class="box-title">GEOLOCATED ALERTS</div>
           <table class="tbl">
             <thead><tr>
-              <th>USERNAME</th><th>IP</th><th>THREAT SCORE</th>
-              <th>LEVEL</th><th>LAST SEEN</th><th>ACTION</th>
+              <th>TIME</th><th>TYPE</th><th>SEVERITY</th><th>LOCATION</th><th>IP</th>
+            </tr></thead>
+            <tbody id="geo-table"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ══ SESSIONS ══ -->
+      <div class="panel" id="panel-sessions">
+        <div class="box" style="overflow-x:auto">
+          <div class="box-title">ACTIVE SESSIONS</div>
+          <table class="tbl">
+            <thead><tr>
+              <th>USER</th><th>IP</th><th>SCORE</th><th>LEVEL</th><th>LAST SEEN</th><th>ACTION</th>
             </tr></thead>
             <tbody id="sess-tbody"></tbody>
           </table>
         </div>
       </div>
 
-      <!-- ALERTS -->
+      <!-- ══ ALERTS ══ -->
       <div class="panel" id="panel-alerts">
         <div class="box" style="overflow-x:auto">
-          <h4>IDS ALERT LOG</h4>
+          <div class="box-title">IDS ALERT LOG</div>
           <table class="tbl">
             <thead><tr>
-              <th>TIME</th><th>TYPE</th><th>SEVERITY</th>
-              <th>DESCRIPTION</th><th>IP</th>
+              <th>TIME</th><th>TYPE</th><th>SEVERITY</th><th>DESCRIPTION</th><th>IP</th>
             </tr></thead>
             <tbody id="alerts-tbody"></tbody>
           </table>
         </div>
       </div>
 
-      <!-- LOGS -->
+      <!-- ══ LOGS ══ -->
       <div class="panel" id="panel-logs">
         <div class="box" style="overflow-x:auto">
-          <h4>HTTP REQUEST LOG</h4>
+          <div class="box-title">HTTP REQUEST LOG</div>
           <table class="tbl">
             <thead><tr>
-              <th>TIME</th><th>IP</th><th>METHOD</th>
-              <th>PATH</th><th>SIZE</th><th>USER-AGENT</th>
+              <th>TIME</th><th>IP</th><th>METHOD</th><th>PATH</th><th>SIZE</th><th>UA</th>
             </tr></thead>
             <tbody id="logs-tbody"></tbody>
           </table>
         </div>
       </div>
 
-      <!-- SIMULATION -->
+      <!-- ══ SIMULATION ══ -->
       <div class="panel" id="panel-simulate">
-        <div class="box">
-          <h4>ATTACK SIMULATION CONSOLE</h4>
-          <p style="color:var(--t2);font-family:var(--mono);font-size:.72rem;margin-bottom:1.2rem;line-height:1.7">
-            Trigger IDS detection scenarios to demonstrate protection mechanisms.
-            All simulations generate real alerts visible in the live stream.
-          </p>
-          <div class="sim-grid">
-            <div class="sim-card">
-              <h5>DDoS Flood</h5>
-              <p>Simulates 150 rapid requests from current IP — triggers rate limiter and burst detection.</p>
-              <button class="btn-sim" onclick="sim('ddos')">▶ SIMULATE</button>
-            </div>
-            <div class="sim-card">
-              <h5>Brute Force</h5>
-              <p>Simulates 50 rapid login attempts — triggers lockout and blocks IP for 300s.</p>
-              <button class="btn-sim" onclick="sim('brute-force')">▶ SIMULATE</button>
-            </div>
-            <div class="sim-card">
-              <h5>Session Misuse</h5>
-              <p>Simulates session token stolen and replayed with different fingerprint (sniffing).</p>
-              <button class="btn-sim" onclick="sim('session-misuse')">▶ SIMULATE</button>
-            </div>
+        <h3 style="font-size:1rem;font-weight:700;color:var(--t1);margin-bottom:.3rem">⚡ Attack Simulation Lab</h3>
+        <p style="font-family:var(--mono);font-size:.65rem;color:var(--t2);margin-bottom:1.1rem;line-height:1.7">
+          Click a button to simulate a real attack. Watch the IDS detect it step-by-step below.
+          Each simulation fires a real alert visible on the map and in the live stream.
+        </p>
+
+        <div class="sim-cards">
+          <div class="sim-card" id="sc-ddos">
+            <div class="sim-pulse"></div>
+            <span class="sim-icon">🌊</span>
+            <div class="sim-name">DDoS Flood</div>
+            <p class="sim-desc">Sends 150 fake requests in 1 second. Crashes servers by overwhelming them with traffic.</p>
+            <button class="sim-btn" onclick="runSim('ddos','sc-ddos')">▶ LAUNCH ATTACK</button>
           </div>
-          <div class="sim-out" id="sim-out">// Output will appear here after simulation</div>
+          <div class="sim-card" id="sc-brute">
+            <div class="sim-pulse"></div>
+            <span class="sim-icon">🔑</span>
+            <div class="sim-name">Brute Force</div>
+            <p class="sim-desc">Tries 50 passwords rapidly. Like a thief testing every key on a keyring until one opens the lock.</p>
+            <button class="sim-btn" onclick="runSim('brute-force','sc-brute')">▶ LAUNCH ATTACK</button>
+          </div>
+          <div class="sim-card" id="sc-session">
+            <div class="sim-pulse"></div>
+            <span class="sim-icon">🕵️</span>
+            <div class="sim-name">Session Hijack</div>
+            <p class="sim-desc">Steals your login token and pretends to be you from a different device. Classic sniffing attack.</p>
+            <button class="sim-btn" onclick="runSim('session-misuse','sc-session')">▶ LAUNCH ATTACK</button>
+          </div>
+        </div>
+
+        <!-- Animated attack visualization -->
+        <div class="atk-viz" id="atk-viz">
+          <div class="atk-idle">👆 Click a simulation button above to see it visualized here step-by-step</div>
         </div>
       </div>
 
-    </div>
+    </div><!-- /content -->
   </main>
-</div>
+</div><!-- /layout -->
 
+<!-- Leaflet JS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
-// ── Panel nav ──
-function show(name,el){
+// ── sidebar nav ──────────────────────────────────────────────────────────────
+function show(name, el){
   document.querySelectorAll(".panel").forEach(p=>p.classList.remove("active"));
-  document.querySelectorAll(".nav-item").forEach(a=>a.classList.remove("active"));
+  document.querySelectorAll(".nav-a").forEach(a=>a.classList.remove("active"));
   document.getElementById("panel-"+name).classList.add("active");
-  document.getElementById("pg-title").textContent=name.toUpperCase();
+  document.getElementById("pg-title").textContent = name.toUpperCase();
   el.classList.add("active");
-  if(name==="sessions")loadSessions();
-  else if(name==="alerts")loadAlerts();
-  else if(name==="logs")loadLogs();
-  else loadStats();
+  closeSB();
+  if(name==="overview")  loadStats();
+  else if(name==="map")      { loadMap(); loadGeoAlerts(); }
+  else if(name==="sessions") loadSessions();
+  else if(name==="alerts")   loadAlerts();
+  else if(name==="logs")     loadLogs();
 }
 
-// ── Stats ──
-async function loadStats(){
-  const d=await(await fetch("/api/stats")).json();
-  document.getElementById("s-online").textContent=d.online;
-  document.getElementById("s-sess").textContent=d.sessions;
-  document.getElementById("s-alerts").textContent=d.alerts_total;
-  document.getElementById("s-crit").textContent=d.alerts_critical;
-  document.getElementById("s-blocked").textContent=d.blocked_ips;
-  document.getElementById("s-probes").textContent=d.suspicious_probes;
+function toggleSB(){
+  document.getElementById("sidebar").classList.toggle("open");
+  document.getElementById("sb-overlay").classList.toggle("show");
+}
+function closeSB(){
+  document.getElementById("sidebar").classList.remove("open");
+  document.getElementById("sb-overlay").classList.remove("show");
+}
 
-  const tb=d.threat_breakdown;const tot=Math.max(1,tb.Normal+tb.Suspicious+tb.Attack);
+// ── STATS ─────────────────────────────────────────────────────────────────────
+async function loadStats(){
+  const d = await (await fetch("/api/stats")).json();
+  document.getElementById("s-online").textContent  = d.online;
+  document.getElementById("s-sess").textContent    = d.sessions;
+  document.getElementById("s-alerts").textContent  = d.alerts_total;
+  document.getElementById("s-crit").textContent    = d.alerts_critical;
+  document.getElementById("s-blocked").textContent = d.blocked_ips;
+  document.getElementById("s-probes").textContent  = d.suspicious_probes;
+
+  const tb=d.threat_breakdown, tot=Math.max(1,tb.Normal+tb.Suspicious+tb.Attack);
   document.getElementById("threat-bars").innerHTML=`
-    <div class="tbar-row"><span>Normal</span>
-      <div class="tbar"><div class="tbar-fill n" style="width:${tb.Normal/tot*100}%"></div></div>
+    <div class="tb-row"><span>Normal</span>
+      <div class="tb"><div class="tbf n" style="width:${tb.Normal/tot*100}%"></div></div>
       <span>${tb.Normal}</span></div>
-    <div class="tbar-row"><span>Suspicious</span>
-      <div class="tbar"><div class="tbar-fill s" style="width:${tb.Suspicious/tot*100}%"></div></div>
+    <div class="tb-row"><span>Suspicious</span>
+      <div class="tb"><div class="tbf s" style="width:${tb.Suspicious/tot*100}%"></div></div>
       <span>${tb.Suspicious}</span></div>
-    <div class="tbar-row"><span>Attack</span>
-      <div class="tbar"><div class="tbar-fill a" style="width:${tb.Attack/tot*100}%"></div></div>
+    <div class="tb-row"><span>Attack</span>
+      <div class="tb"><div class="tbf a" style="width:${tb.Attack/tot*100}%"></div></div>
       <span>${tb.Attack}</span></div>`;
 }
 
-// ── Sessions ──
+// ── MAP ───────────────────────────────────────────────────────────────────────
+let leafMap = null, markers = [];
+
+function initMap(){
+  if(leafMap) return;
+  leafMap = L.map("map", {
+    center: [20, 0], zoom: 2,
+    zoomControl: true, attributionControl: false
+  });
+
+  // Dark tile layer (CartoDB Dark Matter — free, no key needed)
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+    attribution: '© OpenStreetMap © CARTO',
+    maxZoom: 18
+  }).addTo(leafMap);
+
+  // Attribution small
+  L.control.attribution({position:"bottomright"}).addTo(leafMap);
+}
+
+function makeIcon(color, size=12){
+  return L.divIcon({
+    html: `<div style="
+      width:${size}px;height:${size}px;border-radius:50%;
+      background:${color};border:2px solid rgba(255,255,255,.4);
+      box-shadow:0 0 ${size}px ${color},0 0 ${size*2}px ${color}55;
+      animation:pulse-map 2s infinite;
+    "></div>
+    <style>@keyframes pulse-map{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.4);opacity:.7}}</style>`,
+    className: "",
+    iconSize: [size, size],
+    iconAnchor: [size/2, size/2]
+  });
+}
+
+async function loadMap(){
+  initMap();
+  // Clear old markers
+  markers.forEach(m => leafMap.removeLayer(m)); markers=[];
+
+  // Load active sessions with geo
+  try{
+    const d = await (await fetch("/api/geo/sessions")).json();
+    d.points.forEach(p => {
+      if(!p.lat && !p.lon) return;
+      const col = p.threat_level==="Attack"?"#ff3355":p.threat_level==="Suspicious"?"#ffb700":"#39ff85";
+      const sz  = p.threat_level==="Attack"?16:p.threat_level==="Suspicious"?13:11;
+      const m = L.marker([p.lat, p.lon], {icon: makeIcon(col, sz)})
+        .addTo(leafMap)
+        .bindPopup(`
+          <div style="font-family:'DM Mono',monospace;font-size:.72rem;line-height:1.8;min-width:180px">
+            <strong style="font-size:.85rem;color:#00e5ff">${p.flag} ${esc(p.username)}</strong><br>
+            <span style="color:#6b90b8">IP:</span> ${esc(p.ip)}<br>
+            <span style="color:#6b90b8">Location:</span> ${esc(p.city)}, ${esc(p.country)}<br>
+            <span style="color:#6b90b8">ISP:</span> ${esc(p.isp)}<br>
+            <span style="color:#6b90b8">Threat:</span> <span style="color:${col}">${p.threat_level}</span><br>
+            <span style="color:#6b90b8">Score:</span> ${p.threat_score}
+          </div>`);
+      markers.push(m);
+    });
+  }catch(e){}
+
+  // Load alert origins (red markers with pulsing effect)
+  try{
+    const d = await (await fetch("/api/geo/alerts")).json();
+    const seen = new Set();
+    d.points.forEach(p => {
+      if(!p.lat && !p.lon) return;
+      const key = `${p.lat},${p.lon}`;
+      const col = p.severity==="critical"||p.severity==="high"?"#ff3355":
+                  p.severity==="medium"?"#ffb700":"#b060ff";
+      if(seen.has(key)) return;
+      seen.add(key);
+      const m = L.marker([p.lat, p.lon], {icon: makeIcon(col, 14)})
+        .addTo(leafMap)
+        .bindPopup(`
+          <div style="font-family:'DM Mono',monospace;font-size:.72rem;line-height:1.8;min-width:180px">
+            <strong style="font-size:.85rem;color:${col}">⚠ ${esc(p.alert_type)}</strong><br>
+            <span style="color:#6b90b8">Location:</span> ${p.flag||"🌐"} ${esc(p.city)}, ${esc(p.country)}<br>
+            <span style="color:#6b90b8">IP:</span> ${esc(p.ip)}<br>
+            <span style="color:#6b90b8">Severity:</span> <span style="color:${col}">${p.severity.toUpperCase()}</span><br>
+            <span style="color:#6b90b8">Time:</span> ${new Date(p.timestamp*1000).toLocaleTimeString()}<br>
+            <hr style="border-color:#1e3350;margin:.4rem 0">
+            <span style="color:#d4e8f7">${esc(p.description.substring(0,80))}${p.description.length>80?"…":""}</span>
+          </div>`);
+      markers.push(m);
+    });
+  }catch(e){}
+}
+
+async function loadGeoAlerts(){
+  try{
+    const d = await (await fetch("/api/geo/alerts")).json();
+    document.getElementById("geo-table").innerHTML = d.points.slice(0,30).map(p=>`
+      <tr>
+        <td style="font-family:var(--mono);font-size:.65rem;white-space:nowrap">
+          ${new Date(p.timestamp*1000).toLocaleTimeString()}</td>
+        <td><code style="font-size:.65rem">${esc(p.alert_type)}</code></td>
+        <td><span class="sev-${p.severity}">${p.severity.toUpperCase()}</span></td>
+        <td style="font-size:.75rem">${p.flag||"🌐"} ${esc(p.city)}, ${esc(p.country)}</td>
+        <td style="font-family:var(--mono);font-size:.65rem;color:var(--cyan2)">${esc(p.ip)}</td>
+      </tr>`).join("") || `<tr><td colspan="5" style="text-align:center;color:var(--t3);padding:1.2rem;font-family:var(--mono);font-size:.7rem">No geolocated alerts yet</td></tr>`;
+  }catch(e){}
+}
+
+// ── SESSIONS ─────────────────────────────────────────────────────────────────
 async function loadSessions(){
-  const d=await(await fetch("/api/sessions")).json();
-  document.getElementById("sess-tbody").innerHTML=d.sessions.map(s=>`
+  const d = await (await fetch("/api/sessions")).json();
+  document.getElementById("sess-tbody").innerHTML = d.sessions.map(s=>`
     <tr>
       <td>${esc(s.username)}</td>
-      <td><code style="color:var(--cyan2)">${esc(s.ip)}</code></td>
+      <td><code style="color:var(--cyan2);font-size:.68rem">${esc(s.ip)}</code></td>
       <td style="font-family:var(--mono)">${s.threat_score}</td>
-      <td><span class="badge-${s.threat_level[0].toLowerCase()}">${s.threat_level}</span></td>
-      <td style="font-family:var(--mono);font-size:.7rem">${new Date(s.last_seen*1000).toLocaleTimeString()}</td>
+      <td><span class="badge-${s.threat_level[0]}">${s.threat_level}</span></td>
+      <td style="font-family:var(--mono);font-size:.65rem">${new Date(s.last_seen*1000).toLocaleTimeString()}</td>
       <td><button class="btn-kick" onclick="kick('${s.id}')">KICK</button></td>
-    </tr>`).join("")||`<tr><td colspan="6" style="text-align:center;color:var(--t3);font-family:var(--mono);padding:1.5rem">No active sessions</td></tr>`;
+    </tr>`).join("") ||
+    `<tr><td colspan="6" style="text-align:center;color:var(--t3);font-family:var(--mono);padding:1.2rem">No active sessions</td></tr>`;
 }
 async function kick(id){
-  await fetch(`/api/kick/${id}`,{method:"POST"});loadSessions();
+  await fetch(`/api/kick/${id}`,{method:"POST"}); loadSessions();
 }
 
-// ── Alerts ──
+// ── ALERTS ─────────────────────────────────────────────────────────────────────
 async function loadAlerts(){
-  const d=await(await fetch("/api/alerts?limit=100")).json();
-  document.getElementById("alerts-tbody").innerHTML=d.alerts.map(a=>`
+  const d = await (await fetch("/api/alerts?limit=100")).json();
+  document.getElementById("alerts-tbody").innerHTML = d.alerts.map(a=>`
     <tr>
-      <td style="font-family:var(--mono);font-size:.7rem;white-space:nowrap">${new Date(a.timestamp*1000).toLocaleTimeString()}</td>
-      <td><code>${esc(a.alert_type)}</code></td>
+      <td style="font-family:var(--mono);font-size:.65rem;white-space:nowrap">${new Date(a.timestamp*1000).toLocaleTimeString()}</td>
+      <td><code style="font-size:.68rem">${esc(a.alert_type)}</code></td>
       <td><span class="sev-${a.severity}">${a.severity.toUpperCase()}</span></td>
-      <td style="max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(a.description)}</td>
-      <td style="font-family:var(--mono);font-size:.7rem">${esc(a.ip||"—")}</td>
-    </tr>`).join("")||`<tr><td colspan="5" style="text-align:center;color:var(--t3);font-family:var(--mono);padding:1.5rem">No alerts</td></tr>`;
+      <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.78rem">${esc(a.description)}</td>
+      <td style="font-family:var(--mono);font-size:.65rem;color:var(--cyan2)">${esc(a.ip||"—")}</td>
+    </tr>`).join("") ||
+    `<tr><td colspan="5" style="text-align:center;color:var(--t3);font-family:var(--mono);padding:1.2rem">No alerts</td></tr>`;
 }
 
-// ── Logs ──
+// ── LOGS ──────────────────────────────────────────────────────────────────────
 async function loadLogs(){
-  const d=await(await fetch("/api/logs")).json();
-  document.getElementById("logs-tbody").innerHTML=d.logs.map(l=>`
+  const d = await (await fetch("/api/logs")).json();
+  document.getElementById("logs-tbody").innerHTML = d.logs.map(l=>`
     <tr>
-      <td style="font-family:var(--mono);font-size:.7rem;white-space:nowrap">${new Date(l.timestamp*1000).toLocaleTimeString()}</td>
-      <td><code style="color:var(--cyan2)">${esc(l.ip)}</code></td>
+      <td style="font-family:var(--mono);font-size:.65rem;white-space:nowrap">${new Date(l.timestamp*1000).toLocaleTimeString()}</td>
+      <td><code style="color:var(--cyan2);font-size:.68rem">${esc(l.ip)}</code></td>
       <td><span class="m-${(l.method||"").toLowerCase()}">${l.method}</span></td>
-      <td style="font-family:var(--mono);font-size:.72rem">${esc(l.path)}</td>
+      <td style="font-family:var(--mono);font-size:.7rem">${esc(l.path)}</td>
       <td style="font-family:var(--mono)">${l.payload_size}B</td>
-      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.7rem;color:var(--t2)">${esc(l.user_agent||"—")}</td>
+      <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.65rem;color:var(--t2)">${esc(l.user_agent||"—")}</td>
     </tr>`).join("");
 }
 
-// ── Simulation ──
-async function sim(type){
-  const out=document.getElementById("sim-out");
-  out.innerHTML=`<span style="color:var(--cyan)">Running ${type}…</span>`;
-  const d=await(await fetch(`/simulate/${type}`,{method:"POST"})).json();
-  out.innerHTML=`<strong>${d.attack}</strong><br><span style="color:var(--t2)">${d.detail}</span><br><span class="ok">✓ Alert raised: ${d.alert_raised}</span>`;
-  setTimeout(loadStats,800);
+// ── SIMULATION ────────────────────────────────────────────────────────────────
+async function runSim(type, cardId){
+  // Highlight card
+  document.querySelectorAll(".sim-card").forEach(c=>c.classList.remove("running"));
+  document.getElementById(cardId).classList.add("running");
+
+  const viz = document.getElementById("atk-viz");
+  viz.innerHTML = `<div style="font-family:var(--mono);font-size:.75rem;color:var(--cyan);padding:.5rem">
+    <span style="animation:blink 1s infinite;display:inline-block">⬤</span> Launching attack simulation…
+  </div>`;
+
+  const d = await (await fetch(`/simulate/${type}`,{method:"POST"})).json();
+
+  // Build visual
+  let html = `
+    <div class="atk-header">
+      <span class="atk-icon">${d.icon||"⚡"}</span>
+      <div>
+        <div class="atk-title">${esc(d.attack)}</div>
+        <div class="atk-subtitle" style="color:var(--red)">🚨 ${esc(d.severity||"CRITICAL")} — Alert raised</div>
+      </div>
+    </div>
+    <div class="atk-explain">
+      <strong>What is this attack?</strong><br>${esc(d.what_is_it||d.detail||"")}
+    </div>
+    <div class="steps" id="steps-container"></div>
+    <div class="atk-result" id="atk-result">
+      ✅ IDS Protection Active — Alert logged · Dashboard updated · IP action taken
+    </div>`;
+  viz.innerHTML = html;
+
+  // Animate steps one by one
+  const steps = d.steps || [];
+  const container = document.getElementById("steps-container");
+  for(let i=0; i<steps.length; i++){
+    await new Promise(r=>setTimeout(r, i===0?200:600));
+    const s = steps[i];
+    const el = document.createElement("div");
+    el.className = "step";
+    el.innerHTML = `
+      <span class="step-icon">${s.icon}</span>
+      <div class="step-content">
+        <div class="step-label">${esc(s.label)}</div>
+        <div class="step-text">${esc(s.text)}</div>
+      </div>`;
+    container.appendChild(el);
+    // tiny delay then show
+    await new Promise(r=>requestAnimationFrame(r));
+    el.classList.add("show");
+  }
+
+  // Show result
+  await new Promise(r=>setTimeout(r,600));
+  const res = document.getElementById("atk-result");
+  if(res) res.style.display="block";
+
+  // Remove card highlight
+  setTimeout(()=>{
+    document.getElementById(cardId).classList.remove("running");
+  }, 1500);
+
+  // Refresh stats and map
+  loadStats();
+  setTimeout(()=>{ if(leafMap) { loadMap(); loadGeoAlerts(); } },1200);
 }
 
-// ── Dashboard WebSocket (live alerts) ──
+// ── DASHBOARD WebSocket ────────────────────────────────────────────────────────
 let dws;
-function dashConnect(){
-  const proto=location.protocol==="https:"?"wss":"ws";
-  dws=new WebSocket(`${proto}://${location.host}/ws/dashboard`);
-  dws.onopen=()=>{
-    document.getElementById("ws-dot").className="status-dot live";
+function dashWS(){
+  const proto = location.protocol==="https:"?"wss":"ws";
+  dws = new WebSocket(`${proto}://${location.host}/ws/dashboard`);
+  dws.onopen = ()=>{
+    document.getElementById("ws-dot").className="live-dot on";
     document.getElementById("ws-lbl").textContent="Live";
   };
-  dws.onmessage=e=>{
+  dws.onmessage = e=>{
     const msg=JSON.parse(e.data);
-    if(msg.type==="alert")pushLive(msg.data);
+    if(msg.type==="alert") pushLive(msg.data);
   };
-  dws.onclose=()=>{
-    document.getElementById("ws-dot").className="status-dot";
+  dws.onclose = ()=>{
+    document.getElementById("ws-dot").className="live-dot";
     document.getElementById("ws-lbl").textContent="Reconnecting…";
-    setTimeout(dashConnect,3000);
+    setTimeout(dashWS,3000);
   };
-  // send periodic pings to keep alive
-  setInterval(()=>{if(dws&&dws.readyState===1)dws.send("ping")},25000);
+  setInterval(()=>{ if(dws&&dws.readyState===1) dws.send("ping"); },25000);
 }
+
 function pushLive(a){
   const el=document.getElementById("live-stream");
-  const old=el.querySelector("span");if(old)old.remove();
+  const ph=el.querySelector("span"); if(ph) ph.remove();
   const d=document.createElement("div");
-  d.className=`ls-item ${a.severity}`;
-  d.innerHTML=`<span class="ls-ts">${new Date(a.timestamp*1000).toLocaleTimeString()}</span>`+
-    `<code style="color:var(--t1)">${esc(a.type)}</code> — ${esc(a.description)}`;
+  const col=a.severity==="critical"||a.severity==="high"?"critical":a.severity==="medium"?"medium":"low";
+  d.className=`as-item ${col}`;
+  d.innerHTML=`<span class="as-ts">${new Date(a.timestamp*1000).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}</span>`+
+    `<strong>${esc(a.type)}</strong> — ${esc(a.description.substring(0,70))}${a.description.length>70?"…":""}`;
   el.insertBefore(d,el.firstChild);
-  if(el.children.length>20)el.removeChild(el.lastChild);
+  if(el.children.length>18) el.removeChild(el.lastChild);
   loadStats();
 }
 
 function refresh(){
   loadStats();
-  const active=document.querySelector(".panel.active").id.replace("panel-","");
-  if(active==="sessions")loadSessions();
-  else if(active==="alerts")loadAlerts();
-  else if(active==="logs")loadLogs();
+  const act=document.querySelector(".panel.active").id.replace("panel-","");
+  if(act==="map")       { loadMap(); loadGeoAlerts(); }
+  else if(act==="sessions") loadSessions();
+  else if(act==="alerts")   loadAlerts();
+  else if(act==="logs")     loadLogs();
 }
+
 function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}
 
-loadStats();dashConnect();setInterval(loadStats,10000);
+// ── init ──────────────────────────────────────────────────────────────────────
+loadStats(); dashWS(); setInterval(loadStats,12000);
 </script>
 </body>
 </html>
