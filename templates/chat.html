@@ -384,6 +384,39 @@ function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").repl
 setInterval(()=>{if(ws&&ws.readyState===1)ws.send(JSON.stringify({type:"ping"}))},20000);
 
 connect();
+<script>
+async function handleQRJoin() {
+    const qrToken = "{{ qr_token }}";
+
+    if (!qrToken) return;
+
+    const fingerprint = localStorage.getItem("fingerprint") || "unknown";
+
+    try {
+        const res = await fetch("/chat/join-qr", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({
+                token: qrToken,
+                fingerprint: fingerprint
+            })
+        });
+
+        const data = await res.json();
+
+        if (data.room_id) {
+            // ✅ CLEAN REDIRECT (REMOVE TOKEN)
+            window.location.href = `/chat/${data.room_id}`;
+        } else {
+            alert("QR Join Failed");
+        }
+
+    } catch (err) {
+        console.error("QR Join Error:", err);
+    }
+}
+
+handleQRJoin();
 </script>
 </body>
 </html>
