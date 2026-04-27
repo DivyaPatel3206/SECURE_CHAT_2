@@ -155,23 +155,37 @@ def client_ip(request) -> str:
 _geo_cache: dict[str, dict] = {}
 
 async def get_geo(ip: str) -> dict:
+    """Return full geo data including lat/lon/flag for map rendering."""
+    LOCAL = {
+        "country": "Local", "city": "Localhost", "isp": "—",
+        "lat": 20.5937, "lon": 78.9629,
+        "country_code": "IN", "flag": "🏠"
+    }
     if ip in ("127.0.0.1", "::1", "localhost", "unknown"):
-        return {"country": "Local", "city": "Localhost", "isp": "—"}
+        return LOCAL
     if ip in _geo_cache:
         return _geo_cache[ip]
     try:
-        async with httpx.AsyncClient(timeout=3.0) as c:
+        async with httpx.AsyncClient(timeout=4.0) as c:
             r = await c.get(f"https://ipapi.co/{ip}/json/")
             d = r.json()
+            if d.get("error"):
+                return LOCAL
+            cc = d.get("country_code", "")
+            flag = (chr(ord(cc[0]) + 127397) + chr(ord(cc[1]) + 127397)) if len(cc) == 2 else "🌐"
             result = {
-                "country": d.get("country_name", "Unknown"),
-                "city":    d.get("city", "Unknown"),
-                "isp":     d.get("org", "Unknown"),
+                "country":      d.get("country_name", "Unknown"),
+                "country_code": cc,
+                "city":         d.get("city", "Unknown"),
+                "isp":          d.get("org", "Unknown"),
+                "lat":          float(d.get("latitude",  0.0)),
+                "lon":          float(d.get("longitude", 0.0)),
+                "flag":         flag,
             }
             _geo_cache[ip] = result
             return result
     except Exception:
-        return {"country": "Unknown", "city": "Unknown", "isp": "Unknown"}
+        return LOCAL
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  RATE LIMITER  (in-memory, per-IP sliding window)
@@ -657,7 +671,7 @@ async def chat_create_room(request: Request):
     return {"room_id": rid}
 
 @app.get("/chat/qr/{room_id}")
-async def chat_qr(room_id: str):
+async def chat_qr(room_id: str, request: Request):
     """Generate a single-use, short-lived, device-bound QR token."""
     token = make_token(16)
     t = now()
@@ -668,9 +682,16 @@ async def chat_qr(room_id: str):
         )
         await db.commit()
 
-    join_url = f"/chat/{room_id}?qr_token={token}"
-    qr = qrcode.QRCode(box_size=8, border=2)
-    qr.add_data(f"http://127.0.0.1:8000{join_url}")
+    # ✅ Build URL from actual request so QR works on any server/device/network
+    scheme = request.headers.get("x-forwarded-proto") or request.url.scheme
+    host   = request.headers.get("x-forwarded-host")  or request.headers.get("host") or request.url.netloc
+    base_url = f"{scheme}://{host}"
+    join_url = f"{base_url}/chat/{room_id}?qr_token={token}"
+    qr = qrcode.QRCode(
+        error_correction=qrcode.constants.ERROR_CORRECT_M,
+        box_size=8, border=2
+    )
+    qr.add_data(join_url)
     qr.make(fit=True)
     img = qr.make_image(fill_color="#00e5ff", back_color="#0a0f1a")
     buf = io.BytesIO()
@@ -678,7 +699,8 @@ async def chat_qr(room_id: str):
     b64 = base64.b64encode(buf.getvalue()).decode()
 
     return {"qr_image": f"data:image/png;base64,{b64}",
-            "expires_in": QR_TTL, "join_url": join_url}
+            "expires_in": QR_TTL, "join_url": join_url,
+            "base_url": base_url}
 
 @app.post("/chat/join-qr")
 async def chat_join_qr(request: Request):
@@ -881,33 +903,72 @@ async def sim_ddos(request: Request):
     ip = client_ip(request)
     for _ in range(150): limiter._reqs[ip].append(now())
     limiter.block(ip, 30)
-    await emit_alert("DDOS_SIM", "critical",
-        f"[SIM] DDoS flood: 150 req from {ip} — IP blocked 30s", ip=ip)
+    await emit_alert("DDOS_ATTACK", "critical",
+        f"🔴 DDoS FLOOD DETECTED: 150 requests from {ip} in <1 second — IP BLOCKED 30s", ip=ip)
     await _log_sim("DDOS", ip, "150 simulated requests")
-    return {"attack": "DDoS Flood", "alert_raised": True,
-            "detail": "150 requests generated, IP blocked 30s"}
+    return {
+        "attack": "DDoS Flood Attack",
+        "icon": "🌊",
+        "color": "#ff3355",
+        "alert_raised": True,
+        "severity": "CRITICAL",
+        "what_is_it": "A DDoS (Distributed Denial of Service) attack floods your server with thousands of fake requests, crashing it for real users.",
+        "steps": [
+            {"icon": "💻", "label": "Step 1 — Attacker Starts", "text": "Attacker launches a bot that sends 150+ requests per second to your server."},
+            {"icon": "📊", "label": "Step 2 — Rate Limiter Detects", "text": "System counts 150 requests in under 1 second from the same IP — way above the 30/5s limit."},
+            {"icon": "🚨", "label": "Step 3 — Burst Alert Fires", "text": "IDS engine fires a CRITICAL alert and logs it to the dashboard in real time."},
+            {"icon": "🚫", "label": "Step 4 — IP Blocked", "text": "Attacker IP is automatically blocked for 30 seconds. All their requests now get HTTP 429 error."},
+            {"icon": "✅", "label": "Step 5 — System Protected", "text": "Real users continue unaffected. Block lifts after timeout and system self-heals."}
+        ]
+    }
 
 @app.post("/simulate/brute-force")
 async def sim_brute(request: Request):
     ip = client_ip(request)
     for _ in range(50): _login_attempts[ip].append(now())
     limiter.block(ip, 300)
-    await emit_alert("BRUTE_FORCE_SIM", "critical",
-        f"[SIM] 50 login attempts from {ip} — blocked 300s", ip=ip)
+    await emit_alert("BRUTE_FORCE", "critical",
+        f"🔑 BRUTE FORCE DETECTED: 50 login attempts from {ip} — IP LOCKED OUT 5 minutes", ip=ip)
     await _log_sim("BRUTE_FORCE", ip, "50 simulated attempts")
-    return {"attack": "Brute Force", "alert_raised": True,
-            "detail": "50 rapid login attempts simulated, IP blocked 300s"}
+    return {
+        "attack": "Brute Force Login Attack",
+        "icon": "🔑",
+        "color": "#ffaa00",
+        "alert_raised": True,
+        "severity": "CRITICAL",
+        "what_is_it": "A brute force attack tries thousands of password combinations rapidly until one works, like a thief trying every key on a keyring.",
+        "steps": [
+            {"icon": "🤖", "label": "Step 1 — Bot Starts Guessing", "text": "Attacker's script tries passwords: 'password123', 'admin', '123456'… one after another, very fast."},
+            {"icon": "📈", "label": "Step 2 — Counter Increments", "text": "System counts login attempts from this IP. After 5 failures in 60 seconds, threshold is breached."},
+            {"icon": "🚨", "label": "Step 3 — Alert Triggered", "text": "IDS fires CRITICAL alert: '50 login attempts from IP x.x.x.x'. Admin sees it instantly on dashboard."},
+            {"icon": "⛔", "label": "Step 4 — IP Locked Out", "text": "IP is blocked for 5 minutes (300 seconds). Even correct password won't work during lockout."},
+            {"icon": "🛡", "label": "Step 5 — Account Protected", "text": "Attacker gave up or waits. Real user can login normally after lockout expires."}
+        ]
+    }
 
 @app.post("/simulate/session-misuse")
 async def sim_session(request: Request):
     ip = client_ip(request)
     fake_sid = make_token()
-    await emit_alert("SESSION_MISUSE_SIM", "critical",
-        f"[SIM] Session token {fake_sid[:16]}… reused from {ip} with mismatched fingerprint",
+    await emit_alert("SESSION_HIJACK", "critical",
+        f"👤 SESSION HIJACK: Token {fake_sid[:16]}… stolen & replayed from {ip} — fingerprint MISMATCH",
         session_id=fake_sid, ip=ip)
     await _log_sim("SESSION_MISUSE", ip, f"Fake sid: {fake_sid[:16]}…")
-    return {"attack": "Session Misuse / Sniffing", "alert_raised": True,
-            "detail": "Session token replayed with wrong fingerprint"}
+    return {
+        "attack": "Session Hijacking / Token Theft",
+        "icon": "🕵️",
+        "color": "#aa44ff",
+        "alert_raised": True,
+        "severity": "CRITICAL",
+        "what_is_it": "An attacker intercepts your session token (like stealing your hotel key card) and uses it to pretend they are you.",
+        "steps": [
+            {"icon": "🍪", "label": "Step 1 — Token Exists", "text": "You log in. Server gives you a secret session token (like a VIP wristband) stored in your browser."},
+            {"icon": "👂", "label": "Step 2 — Attacker Intercepts", "text": "Attacker sniffs network traffic or steals the token from an insecure connection. Now they have your wristband."},
+            {"icon": "🎭", "label": "Step 3 — Attacker Pretends to be You", "text": "Attacker sends requests using YOUR token from THEIR device. They say 'I am you' to the server."},
+            {"icon": "🔍", "label": "Step 4 — Fingerprint Mismatch Caught", "text": "Our IDS checks browser fingerprint (screen size, timezone, browser). It doesn't match! RED FLAG."},
+            {"icon": "🚫", "label": "Step 5 — Session Killed", "text": "Server immediately invalidates the stolen token. Attacker is locked out. You're asked to re-login safely."}
+        ]
+    }
 
 @app.get("/simulate/history")
 async def sim_history():
@@ -918,6 +979,54 @@ async def sim_history():
         ) as cur:
             rows = [dict(r) for r in await cur.fetchall()]
     return {"history": rows}
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  GEO MAP  ENDPOINTS  (for Leaflet map in dashboard)
+# ═══════════════════════════════════════════════════════════════════════════
+
+@app.get("/api/geo/sessions")
+async def api_geo_sessions():
+    """All active sessions with real lat/lon for map pins."""
+    ss = await sessions_all()
+    result = []
+    for s in ss:
+        geo = await get_geo(s["ip"])
+        result.append({
+            "username":     s["username"],
+            "ip":           s["ip"],
+            "threat_score": s.get("threat_score", 0),
+            "threat_level": threat_level(s.get("threat_score", 0)),
+            "country":      geo["country"],
+            "city":         geo["city"],
+            "lat":          geo["lat"],
+            "lon":          geo["lon"],
+            "isp":          geo.get("isp", "—"),
+            "flag":         geo.get("flag", "🌐"),
+        })
+    return {"points": result}
+
+@app.get("/api/geo/alerts")
+async def api_geo_alerts():
+    """Recent alerts with geo coordinates for attack-origin visualization."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT * FROM alerts WHERE ip IS NOT NULL ORDER BY timestamp DESC LIMIT 40"
+        ) as cur:
+            rows = [dict(r) for r in await cur.fetchall()]
+    result = []
+    for r in rows:
+        geo = await get_geo(r["ip"])
+        result.append({
+            **r,
+            "lat":     geo["lat"],
+            "lon":     geo["lon"],
+            "country": geo["country"],
+            "city":    geo["city"],
+            "flag":    geo.get("flag", "🌐"),
+        })
+    return {"points": result}
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  PAGE ROUTES
